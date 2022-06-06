@@ -1,0 +1,16 @@
+.directory
+*/.directory
+*~
+.idea/
+contra-clip-venv/
+*.pyc
+__pycache__/
+*/__pycache__/
+dev/
+notebooks/
+figs/inkscape/
+models/pretrained/
+
+!experiments/
+experiments/*
+!experiments/latent_codes/
