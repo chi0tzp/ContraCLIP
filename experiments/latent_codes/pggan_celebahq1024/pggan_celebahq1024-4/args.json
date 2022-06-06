@@ -1,0 +1,1 @@
+{"verbose": true, "gan": "pggan_celebahq1024", "stylegan_space": "Z", "truncation": 1.0, "num_samples": 32, "cuda": true}
