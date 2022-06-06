@@ -1,0 +1,16 @@
+ipython
+ipykernel
+ipywidgets
+sklearn
+scikit-image
+matplotlib
+ftfy
+regex
+tqdm
+opencv-python
+requests
+tensorboard
+ninja
+Tinkerer
+tk
+protobuf==3.20.1
