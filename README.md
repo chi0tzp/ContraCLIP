@@ -107,7 +107,7 @@ as well as, a directory `experiments/complete/` (if not already created by the u
 └── ContraCLIP_stylegan2_ffhq1024-W-K9-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-attributes
 ```
 
-We note that the pre-trained ArcFace model is used only during the evaluation stage (no ID preserving loss is imposed during training).
+We note that the pre-trained ArcFace model is used only during the evaluation stage (**no ID preserving loss is imposed during training**).
 
 
 
@@ -119,7 +119,7 @@ For training a ContraCLIP model you need to use `train.py` (check its basic usag
 (contra-clip-venv) $ python train.py --gan=stylegan2_ffhq1024 --truncation=0.7 --stylegan-space=W --corpus=expressions3 --num-latent-support-dipoles=128 --loss=contrastive --temperature=0.5 --beta=0.75 --min-shift-magnitude=0.1 --max-shift-magnitude=0.2 --batch-size=3 --max-iter=120000 --log-freq=10--ckp-freq=100
 ```
 
-In the example above, the batch size is set to `3` and the training will be conducted for `120000` iterations. Minimum and maximum shift magnitudes are set to `0.1` and `0.2`, respectively, and the number of support dipoles for each latent path is set to `128` (please see the WarpedGANSpace paper [1] for more details). Moreover, `contrastive` loss is being used with a temperature parameter equal to `0.5`. The `beta` parameter  of the CLIP text space RBF dipoles is set to `0.75`. A set of auxiliary training scripts (for the results reported in the paper) can be found under `scripts/train/`.
+In the example above, the batch size is set to `3` and the training will be conducted for `120000` iterations. Minimum and maximum shift magnitudes are set to `0.1` and `0.2`, respectively, and the number of support dipoles for each latent path is set to `128` (please see the [WarpedGANSpace](https://github.com/chi0tzp/WarpedGANSpace) for more details). Moreover, `contrastive` loss is being used with a temperature parameter equal to `0.5`. The `beta` parameter  of the CLIP text space RBF dipoles is set to `0.75`. A set of auxiliary training scripts (for the results reported in the paper) can be found under `scripts/train/`.
 
 The training script will create a directory with the following name format:
 
@@ -171,12 +171,6 @@ where `eps`,  `shift_steps`, and `total_length` denote respectively the shift ma
     primaryClass={cs.CV}
 }
 ```
-
-
-
-## References
-
-[1] Tzelepis, Christos, Georgios  Tzimiropoulos, and Ioannis Patras. "WarpedGANSpace: Finding non-linear  RBF paths in GAN latent space." *Proceedings of the IEEE/CVF International Conference on Computer Vision*. 2021.
 
 
 
