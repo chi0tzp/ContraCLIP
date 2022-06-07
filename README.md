@@ -1,10 +1,10 @@
 # ContraCLIP: Interpretable GAN generation driven by pairs of contrasting sentences
 
-Authors official PyTorch implementation of the **[ContraCLIP: Interpretable GAN generation driven by pairs of contrasting sentences](todo)**. If you use this code for your research, please [**cite**](#citation) our paper.
+Authors official PyTorch implementation of the **[ContraCLIP: Interpretable GAN generation driven by pairs of contrasting sentences](https://arxiv.org/pdf/2206.02104.pdf)**. If you use this code for your research, please [**cite**](#citation) our paper.
 
 > **ContraCLIP: Interpretable GAN generation driven by pairs of contrasting sentences**<br>
 > Christos Tzelepis, James Oldfield, Georgios Tzimiropoulos, and Ioannis Patras<br>
-> https://arxiv.org/abs/ID <br>
+> https://arxiv.org/abs/2206.02104 <br>
 > ![ContraCLIP Summary](figs/summary.png)
 >
 > **Abstract**: This work addresses the problem of discovering non-linear interpretable paths in the latent space of pre-trained GANs in a model-agnostic manner. In the proposed method, the discovery is driven by a set of pairs of natural language sentences with contrasting semantics, named semantic dipoles, that serve as the limits of the interpretation that we require by the trainable latent paths to encode. By using the pre-trained CLIP encoder, the sentences are projected into the vision-language space, where they serve as dipoles, and where RBF-based warping functions define a set of non-linear directional paths, one for each semantic dipole, allowing in this way traversals from one semantic pole to the other. By defining an objective that discovers paths in the latent space of GANs that generate changes along the desired paths in the vision-language embedding space, we provide an intuitive way of controlling the underlying generating factors and address some of the limitations of the state-of-the-art works, namely, that a) they are typically tailored to specific GAN architectures (i.e., StyleGAN), b) they disregard the relative position of the manipulated and the original image in the image embedding and the relative position of the image and the text embeddings, and c) they lead to abrupt image manipulations and quickly arrive at regions of low density and, thus, low image quality, providing limited control of the generative factors.
@@ -163,10 +163,9 @@ where `eps`,  `shift_steps`, and `total_length` denote respectively the shift ma
 ```bibtex
 @misc{tzelepis2022contraclip,
     author = {Tzelepis, Christos and James, Oldfield and Tzimiropoulos, Georgios and Patras, Ioannis},
-    title = {{ContraCLIP}: Interpretable GAN generation driven by pairs of contrasting sentences},
-    month = {March},
+    title = {{ContraCLIP}: Interpretable {GAN} generation driven by pairs of contrasting sentences},
     year={2022},
-    eprint={},
+    eprint={2206.02104},
     archivePrefix={arXiv},
     primaryClass={cs.CV}
 }
