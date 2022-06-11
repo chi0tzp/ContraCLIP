@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import torch
 from torch import nn
+import torch.nn.functional as F
 from PIL import Image, ImageDraw
 import json
 from torchvision.transforms import ToPILImage
@@ -48,42 +49,39 @@ def one_hot(dims, value, idx):
     return vec
 
 
-def create_strip(image_list, N=5):
-    img_w = image_list[0].width
-    img_h = image_list[0].height
+def create_strip(image_list, N=5, size=256):
     step = len(image_list) // N
-    transformed_images_strip = Image.new('RGB', (N * img_w, img_h))
+    transformed_images_strip = Image.new('RGB', (N * size, size))
     for i in range(N):
         # Draw rectangle around the central image
         if i == N // 2:
-            draw_rect = ImageDraw.Draw(image_list[i * step])
-            rect_width = 10
+            draw_rect = ImageDraw.Draw(image_list[i * step].resize(size=(size, size)))
+            rect_width = 5
             rect_colour = (175, 5, 25)
-            draw_rect.rectangle(xy=((0, 0), (img_w, img_h)), outline=rect_colour, width=rect_width)
-        transformed_images_strip.paste(image_list[i * step], (i * img_w, 0))
+            draw_rect.rectangle(xy=((0, 0), (size, size)), outline=rect_colour, width=rect_width)
+        transformed_images_strip.paste(image_list[i * step].resize(size=(size, size)), (i * size, 0))
 
-    transformed_images_strip_gif_frames = []
+    transformed_images_gif_frames = []
     for i in range(len(image_list)):
-        gif_frame = Image.new('RGB', ((N + 1) * img_w, img_h))
-        gif_frame.paste(transformed_images_strip, (0, 0))
-        gif_frame.paste(image_list[i], (N * img_w, 0))
+        gif_frame = Image.new('RGB', (2 * size, size))
+        gif_frame.paste(image_list[len(image_list) // 2].resize(size=(size, size)), (0, 0))
+        gif_frame.paste(image_list[i].resize(size=(size, size)), (size, 0))
 
         # Draw progress bar
         draw_bar = ImageDraw.Draw(gif_frame)
-        bar_h = 25
+        bar_h = 12
         bar_colour = (252, 186, 3)
-        draw_bar.rectangle(xy=((N * img_w, img_h - bar_h), ((N + i / len(image_list)) * img_w, img_h)), fill=bar_colour)
+        draw_bar.rectangle(xy=((size, size - bar_h), ((1 + (i / len(image_list))) * size, size)), fill=bar_colour)
 
         # Draw rectangle around the moving part
-        draw_rect = ImageDraw.Draw(gif_frame)
-        rect_width = 10
-        # rect_colour = (171, 12, 33)
-        rect_colour = (0, 0, 0)
-        draw_rect.rectangle(xy=((N * img_w, 0), ((N + 1) * img_w, img_h)), outline=rect_colour, width=rect_width)
+        # draw_rect = ImageDraw.Draw(gif_frame)
+        # rect_width = 5
+        # rect_colour = (0, 0, 0)
+        # draw_rect.rectangle(xy=((size, 0), (2 * size, size)), outline=rect_colour, width=rect_width)
 
-        transformed_images_strip_gif_frames.append(gif_frame)
+        transformed_images_gif_frames.append(gif_frame)
 
-    return transformed_images_strip, transformed_images_strip_gif_frames
+    return transformed_images_strip, transformed_images_gif_frames
 
 
 def get_concat_h(img_file_orig,
@@ -168,7 +166,8 @@ def main():
     parser.add_argument('--strip-number', type=int, default=5, help="set number of images per strip")
 
     parser.add_argument('--gif', action='store_true', help="Create GIF traversals")
-    parser.add_argument('--gif-size', type=int, default=256, help="set gif resolution")
+    # parser.add_argument('--gif-size', type=int, default=256, help="set gif resolution")
+    parser.add_argument('--gif-size', type=int, default=196, help="set gif resolution")
     parser.add_argument('--gif-fps', type=int, default=30, help="set gif frame rate")
     # ================================================================================================================ #
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")
@@ -189,6 +188,9 @@ def main():
         raise FileNotFoundError("File not found: {}".format(args_json_file))
     args_json = ModelArgs(**json.load(open(args_json_file)))
     gan = args_json.__dict__["gan"]
+    stylegan_space = args_json.__dict__["stylegan_space"]
+    stylegan_layer = args_json.__dict__["stylegan_layer"] if "stylegan_layer" in args_json.__dict__ else None
+    truncation = args_json.__dict__["truncation"]
 
     # -- models directory (support sets and reconstructor, final or checkpoint files)
     models_dir = osp.join(args.exp, 'models')
@@ -242,7 +244,7 @@ def main():
         print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[gan][0]))
 
     G = load_generator(model_name=gan,
-                       latent_is_w=('stylegan' in gan) and (args_json.__dict__["stylegan_space"] == 'W'),
+                       latent_is_w=('stylegan' in gan) and ('W' in args_json.__dict__["stylegan_space"]),
                        verbose=args.verbose).eval()
 
     # Upload GAN generator model to GPU
@@ -257,10 +259,14 @@ def main():
     if args.verbose:
         print("#. Build Latent Support Sets model LSS...")
 
+    # TODO: add comment
+    support_vectors_dim = G.dim_z
+    if ('stylegan' in gan) and (stylegan_space == 'W+'):
+        support_vectors_dim *= (stylegan_layer + 1)
+
     LSS = SupportSets(num_support_sets=len(semantic_dipoles),
                       num_support_dipoles=args_json.__dict__["num_latent_support_dipoles"],
-                      support_vectors_dim=G.dim_z,
-                      gamma=1.0 / G.dim_z if args_json.__dict__["gamma"] is None else args_json.__dict__["gamma"])
+                      support_vectors_dim=support_vectors_dim)
 
     # Load pre-trained weights and set to evaluation mode
     if args.verbose:
@@ -359,8 +365,11 @@ def main():
 
             # Current path's latent codes and shifts lists
             latent_code = z_
-            if ('stylegan' in gan) and (args_json.__dict__["stylegan_space"] == 'W'):
-                latent_code = G.get_w(zs[i, :].unsqueeze(0), truncation=args_json.__dict__["truncation"])[:, 0, :]
+            if ('stylegan' in gan) and ('W' in stylegan_space):
+                if stylegan_space == 'W':
+                    latent_code = G.get_w(zs[i, :].unsqueeze(0), truncation=truncation)[:, 0, :]
+                elif stylegan_space == 'W+':
+                    latent_code = G.get_w(zs[i, :].unsqueeze(0), truncation=truncation)
             current_path_latent_codes = [latent_code]
             current_path_latent_shifts = [torch.zeros_like(latent_code).cuda() if use_cuda
                                           else torch.zeros_like(latent_code)]
@@ -371,8 +380,11 @@ def main():
             ##                                                                                                        ##
             ## ====================================================================================================== ##
             # == Positive direction ==
-            if ('stylegan' in gan) and (args_json.__dict__["stylegan_space"] == 'W'):
-                latent_code = G.get_w(z_, truncation=args_json.__dict__["truncation"])[:, 0, :].clone()
+            if ('stylegan' in gan) and ('W' in stylegan_space):
+                if stylegan_space == 'W':
+                    latent_code = G.get_w(z_, truncation=truncation)[:, 0, :].clone()
+                elif stylegan_space == 'W+':
+                    latent_code = G.get_w(z_, truncation=truncation).clone()
             else:
                 latent_code = z_.clone()
             cnt = 0
@@ -385,23 +397,36 @@ def main():
                 if use_cuda:
                     support_sets_mask.cuda()
 
-                # Get latent space shift vector
-                with torch.no_grad():
-                    shift = args.eps * LSS(support_sets_mask, latent_code)
-
-                # Update latent code
-                latent_code = latent_code + shift
-                current_path_latent_code = latent_code
+                # Get latent space shift vector and shifted latent code
+                if ('stylegan' in gan) and (stylegan_space == 'W+'):
+                    with torch.no_grad():
+                        shift = args.eps * LSS(support_sets_mask,
+                                               latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
+                    latent_code = latent_code + \
+                        F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                              mode='constant', value=0).reshape_as(latent_code)
+                    current_path_latent_code = latent_code
+                else:
+                    with torch.no_grad():
+                        shift = args.eps * LSS(support_sets_mask, latent_code)
+                    latent_code = latent_code + shift
+                    current_path_latent_code = latent_code
 
                 # Store latent codes and shifts
                 if cnt == args.shift_leap:
-                    current_path_latent_shifts.append(shift)
+                    if ('stylegan' in gan) and (stylegan_space == 'W+'):
+                        current_path_latent_shifts.append(F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512), mode='constant', value=0).reshape_as(latent_code))
+                    else:
+                        current_path_latent_shifts.append(shift)
                     current_path_latent_codes.append(current_path_latent_code)
                     cnt = 0
 
             # == Negative direction ==
-            if ('stylegan' in gan) and (args_json.__dict__["stylegan_space"] == 'W'):
-                latent_code = G.get_w(z_, truncation=args_json.__dict__["truncation"])[:, 0, :].clone()
+            if ('stylegan' in gan) and ('W' in stylegan_space):
+                if stylegan_space == 'W':
+                    latent_code = G.get_w(z_, truncation=truncation)[:, 0, :].clone()
+                elif stylegan_space == 'W+':
+                    latent_code = G.get_w(z_, truncation=truncation).clone()
             else:
                 latent_code = z_.clone()
             cnt = 0
@@ -412,17 +437,30 @@ def main():
                 support_sets_mask[0, dim] = 1.0
                 if use_cuda:
                     support_sets_mask.cuda()
-                # Get latent space shift vector
-                with torch.no_grad():
-                    shift = -args.eps * LSS(support_sets_mask, latent_code)
 
-                # Update latent code
-                latent_code = latent_code + shift
-                current_path_latent_code = latent_code
+                # Get latent space shift vector and shifted latent code
+                if ('stylegan' in gan) and (stylegan_space == 'W+'):
+                    with torch.no_grad():
+                        shift = -args.eps * LSS(support_sets_mask,
+                                                latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
+                    latent_code = latent_code + \
+                        F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                              mode='constant', value=0).reshape_as(latent_code)
+                    current_path_latent_code = latent_code
+                else:
+                    with torch.no_grad():
+                        shift = -args.eps * LSS(support_sets_mask, latent_code)
+                    latent_code = latent_code + shift
+                    current_path_latent_code = latent_code
 
                 # Store latent codes and shifts
                 if cnt == args.shift_leap:
-                    current_path_latent_shifts = [shift] + current_path_latent_shifts
+                    if ('stylegan' in gan) and (stylegan_space == 'W+'):
+                        current_path_latent_shifts = \
+                            [F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                                   mode='constant', value=0).reshape_as(latent_code)] + current_path_latent_shifts
+                    else:
+                        current_path_latent_shifts = [shift] + current_path_latent_shifts
                     current_path_latent_codes = [current_path_latent_code] + current_path_latent_codes
                     cnt = 0
             # ========================
@@ -433,7 +471,6 @@ def main():
             current_path_latent_codes_batches = torch.split(current_path_latent_codes, args.batch_size)
             current_path_latent_shifts = torch.cat(current_path_latent_shifts)
             current_path_latent_shifts_batches = torch.split(current_path_latent_shifts, args.batch_size)
-
             if len(current_path_latent_codes_batches) != len(current_path_latent_shifts_batches):
                 raise AssertionError()
             else:
@@ -444,6 +481,7 @@ def main():
                 with torch.no_grad():
                     transformed_img.append(G(current_path_latent_codes_batches[t] +
                                              current_path_latent_shifts_batches[t]))
+                    # transformed_img.append(G(current_path_latent_codes_batches[t]))
             transformed_img = torch.cat(transformed_img)
 
             # Convert tensors (transformed images) into PIL images
@@ -464,21 +502,24 @@ def main():
                                                "JPEG", quality=95, optimize=True, progressive=True)
 
             # Create strip of images and save in jpg and gif
-            transformed_images_strip, transformed_images_strip_gif_frames = create_strip(image_list=transformed_images,
-                                                                                         N=args.strip_number)
-            transformed_images_strip.save(osp.join(transformed_images_strips_root_dir, 'path_{:03d}.jpg'.format(dim)),
+            transformed_images_strip, transformed_images_gif_frames = create_strip(image_list=transformed_images,
+                                                                                   N=args.strip_number,
+                                                                                   size=args.gif_size)
+            transformed_images_strip.save(osp.join(transformed_images_strips_root_dir,
+                                                   'path_{:03d}_strip.jpg'.format(dim)),
                                           "JPEG", quality=args.img_quality, optimize=True, progressive=True)
 
             # Save strip gif
-            im = Image.new(mode='RGB', size=((args.strip_number + 1) * transformed_images[0].width,
-                                             transformed_images[0].height))
-            im.save(
-                fp=osp.join(transformed_images_strips_root_dir, 'path_{:03d}.gif'.format(dim)),
-                append_images=transformed_images_strip_gif_frames,
-                save_all=True,
-                optimize=True,
-                loop=0,
-                duration=1000 // args.gif_fps)
+            # im = Image.new(mode='RGB', size=((args.strip_number + 1) * args.gif_size, args.gif_size))
+            im = Image.new(mode='RGB', size=(2 * args.gif_size, args.gif_size))
+            im.save(fp=osp.join(transformed_images_strips_root_dir, 'path_{:03d}.gif'.format(dim)),
+                    append_images=transformed_images_gif_frames,
+                    save_all=True,
+                    optimize=True,
+                    loop=0,
+                    # duration=1000 // args.gif_fps
+                    duration=1000 // args.gif_fps
+                    )
 
             # Append latent paths
             paths_latent_codes.append(current_path_latent_codes.unsqueeze(0))

@@ -12,7 +12,10 @@ def main():
     Options:
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
-        --stylegan-space             : set StyleGAN's latent space (Z, W) to look for interpretable paths
+        --stylegan-space             : set StyleGAN's latent space (Z, W, W+) to look for interpretable paths
+        --stylegan-layer             : choose up to which StyleGAN's layer to use for learning latent paths
+                                       E.g., if --stylegan-layer=11, then interpretable paths will be learnt in a
+                                       (12 * 512)-dimensional latent space.
         --truncation                 : set W-space truncation parameter. If set, W-space codes will be truncated
 
         ===[ Corpus Support Sets (CSS) ]================================================================================
@@ -54,13 +57,16 @@ def main():
 
     # === Pre-trained GAN Generator (G) ============================================================================== #
     parser.add_argument('--gan', type=str, choices=GENFORCE_MODELS.keys(), help='GAN generator model')
-    parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W'), help="StyleGAN's latent space")
+    parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W', 'W+'),
+                        help="StyleGAN's latent space")
+    parser.add_argument('--stylegan-layer', type=int, default=11, choices=range(18),
+                        help="choose up to which StyleGAN's layer to use for learning latent paths")
     parser.add_argument('--truncation', type=float, help="latent code sampling truncation parameter")
 
     # === Corpus Support Sets (CSS) ================================================================================== #
-    parser.add_argument('--corpus', type=str, default='dev', choices=SEMANTIC_DIPOLES_CORPORA.keys(),
+    parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--beta', type=float, default=0.5,
+    parser.add_argument('--beta', type=float, default=0.75,
                         help="set 0.25 <= beta < 1.0 for fixing the gamma parameter of each semantic dipole")
     parser.add_argument('--styleclip', action='store_true',
                         help="use StyleCLIP approach for calculating image-text similarity")
@@ -76,11 +82,11 @@ def main():
     parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
 
     # === Training =================================================================================================== #
-    parser.add_argument('--max-iter', type=int, default=100000, help="maximum number of training iterations")
+    parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
     parser.add_argument('--batch-size', type=int, default=32, help="training batch size")
     parser.add_argument('--loss', type=str, default='cossim', choices=('cossim', 'contrastive'),
                         help="loss function")
-    parser.add_argument('--temperature', type=float, default=0.2, help="contrastive temperature")
+    parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
     parser.add_argument('--log-freq', default=10, type=int, help='number of iterations per log')
     parser.add_argument('--ckp-freq', default=1000, type=int, help='number of iterations per checkpoint model saving')
     parser.add_argument('--tensorboard', action='store_true', help="use tensorboard")
@@ -118,7 +124,7 @@ def main():
     print("  \\__GAN generator : {} (res: {})".format(args.gan, GENFORCE_MODELS[args.gan][1]))
     print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[args.gan][0]))
     G = load_generator(model_name=args.gan,
-                       latent_is_w=('stylegan' in args.gan) and (args.stylegan_space == 'W'),
+                       latent_is_w=('stylegan' in args.gan) and ('W' in args.stylegan_space),
                        verbose=True).eval()
 
     # Upload GAN generator model to GPU
@@ -147,22 +153,28 @@ def main():
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters: {:,}".format(CSS_trainable_parameters))
 
+    # Set support vector dimensionality and initial gamma param
+    support_vectors_dim = G.dim_z
+    if ('stylegan' in args.gan) and (args.stylegan_space == 'W+'):
+        support_vectors_dim *= (args.stylegan_layer + 1)
+    gamma_init = 1.0 / support_vectors_dim if args.gamma is None else args.gamma
+
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
     print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
-    print("  \\__Support Vectors dim              : {}".format(G.dim_z))
-    print("  \\__Latent RBF gamma                 : {}".format(1.0 / G.dim_z if args.gamma is None else args.gamma))
+    print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
+    print("  \\__Latent RBF initial gamma         : {}".format(gamma_init))
 
     LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
                       num_support_dipoles=args.num_latent_support_dipoles,
-                      support_vectors_dim=512,
-                      gamma=1.0 / G.dim_z if args.gamma is None else args.gamma)
+                      support_vectors_dim=support_vectors_dim,
+                      gamma=gamma_init)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters: {:,}".format(LSS_trainable_parameters))
-
+    
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)

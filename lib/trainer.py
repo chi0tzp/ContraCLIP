@@ -239,8 +239,11 @@ class Trainer(object):
 
             # Generate images for the given latent codes
             latent_code = z
-            if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W'):
-                latent_code = generator.get_w(z, truncation=self.params.truncation)[:, 0, :]
+            if 'stylegan' in self.params.gan:
+                if self.params.stylegan_space == 'W':
+                    latent_code = generator.get_w(z, truncation=self.params.truncation)[:, 0, :]
+                elif self.params.stylegan_space == 'W+':
+                    latent_code = generator.get_w(z, truncation=self.params.truncation)
             img = generator(latent_code)
 
             # Sample indices of shift vectors (`self.params.batch_size` out of `self.params.num_support_sets`)
@@ -287,11 +290,24 @@ class Trainer(object):
             prompt_mask = prompt_mask.unsqueeze(1)
 
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
-            # self.params.stylegan_space, i.e., in Z- or W-space.
-            shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask, latent_code)
+            # self.params.stylegan_space, i.e., in Z-, W-, or W+-space. In the Z-/W-space the dimensionality of the
+            # latent space is 512. In the case of W+-space, the dimensionality is 512 * (self.params.stylegan_layer + 1)
+            if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
+                shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(
+                    support_sets_mask, latent_code[:, :self.params.stylegan_layer + 1, :].reshape(latent_code.shape[0],
+                                                                                                  -1))
+            else:
+                shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask, latent_code)
 
             # Generate images the shifted latent codes
-            img_shifted = generator(latent_code + shift)
+            if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
+                latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
+                shift = F.pad(input=shift, pad=(0, (17 - self.params.stylegan_layer) * 512), mode='constant', value=0)
+                latent_code_shifted = latent_code_reshaped + shift
+                latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
+                img_shifted = generator(latent_code_shifted_reshaped)
+            else:
+                img_shifted = generator(latent_code + shift)
 
             # TODO: add comment
             img_pairs = torch.cat([self.clip_img_transform(img), self.clip_img_transform(img_shifted)], dim=0)
@@ -299,10 +315,9 @@ class Trainer(object):
             clip_img_features, clip_img_shifted_features = torch.split(clip_img_pairs_features, img.shape[0], dim=0)
             clip_img_diff_features = clip_img_shifted_features - clip_img_features
 
-            # TODO: add comment
             ############################################################################################################
             ##                                                                                                        ##
-            ##                                                                                                        ##
+            ##                                 Linear Text Paths (StyleCLIP approach)                                 ##
             ##                                                                                                        ##
             ############################################################################################################
             if self.params.styleclip:
@@ -318,10 +333,9 @@ class Trainer(object):
                 elif self.params.loss == 'contrastive':
                     loss = self.contrastive_loss(clip_img_shifted_features.float(), corpus_text_features_batch)
 
-            # TODO: add comment
             ############################################################################################################
             ##                                                                                                        ##
-            ##                                                                                                        ##
+            ##                                           Linear Text Paths                                            ##
             ##                                                                                                        ##
             ############################################################################################################
             elif self.params.linear:
