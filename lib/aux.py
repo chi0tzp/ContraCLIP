@@ -18,12 +18,11 @@ def create_exp_dir(args):
     the given command (bash script).
 
     Experiment's directory name format:
-        TODO: Fix docstring
-            ContraCLIP-<gan_type>(-{Z,W,S})-K<num_latent_support_sets>-D<num_latent_support_dipoles>
-                -eps<min_shift_magnitude>_<max_shift_magnitude>
-                (-<linear/nonlinear>)(-<contrastive>)(-<styleclip>)-<prompt>
-            E.g.:
-                GANxPlainer-...
+        ContraCLIP-<gan_type>(-{Z,W,W+})-K<num_latent_support_sets>-D<num_latent_support_dipoles>
+            -eps<min_shift_magnitude>_<max_shift_magnitude>
+            (-<nonlinear_beta-<beta>/linear/styleclip>)(-<contrastive_<temperature>/cossim>)-<max_iter>-<prompt>
+        E.g.:
+            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
 
     Args:
         args (argparse.Namespace): the namespace object returned by `parse_args()` for the current run
@@ -46,6 +45,7 @@ def create_exp_dir(args):
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
+    exp_dir += "-{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
 
     # Create output directory (wip)
