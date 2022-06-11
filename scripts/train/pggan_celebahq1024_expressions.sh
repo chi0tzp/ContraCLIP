@@ -16,12 +16,12 @@ max_shift_magnitude=0.2
 linear=false
 styleclip_like=false
 loss="contrastive"
-temperature=0.5
+temperature=1.0
 beta=0.75
 
 # ============ Training ============= #
 batch_size=11
-max_iter=120000
+max_iter=10000
 # =================================== #
 
 

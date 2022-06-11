@@ -13,18 +13,16 @@
 SEMANTIC_DIPOLES_CORPORA = {
     'attributes':
         [
-            ["a picture of a female face.",
-             "a picture of a male face."],
+            ["a picture of a female.",
+             "a picture of a male."],
             ["a picture of an old person.",
              "a picture of a young person."],
             ["a picture of a smiling face.",
              "a picture of a face in neutral expression."],
-            ["a picture of a person with red hair.",
-             "a picture of a person with black hair."],
-            ["a picture of a bald man.",
-             "a picture of a man with hair."],
-            ["a picture of a man with beard.",
-             "a picture of a shaved man."],
+            ["a picture of a bald person.",
+             "a picture of a person with long hair."],
+            ["a picture of a face with beard.",
+             "a picture of a shaved face."],
             ["a picture of a face with makeup.",
              "a picture of a face without makeup."],
             ["a picture of a person with closed eyes.",
@@ -81,8 +79,6 @@ SEMANTIC_DIPOLES_CORPORA = {
         [
             ["a picture of a happy dog.",
              "a picture of a sad dog."],
-            ["a picture of a pointy eared dog.",
-             "a picture of a droopy eared dog."],
             ["a picture of a long haired dog.",
              "a picture of a short haired dog."],
             ["a picture of a friendly dog.",

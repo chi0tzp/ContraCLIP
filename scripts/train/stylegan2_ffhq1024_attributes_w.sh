@@ -4,7 +4,8 @@
 # =================================== #
 
 # ======== GAN Type / Corpus ======== #
-gan="pggan_celebahq1024"
+gan="stylegan2_ffhq1024"
+stylegan_space="W"
 corpus="attributes"
 
 # ==== Latent Support Sets (LSS) ==== #
@@ -37,6 +38,8 @@ if $styleclip_like ; then
 fi
 
 python train.py --gan=${gan} \
+                --truncation=0.7 \
+                --stylegan-space=${stylegan_space} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --loss=${loss} \
