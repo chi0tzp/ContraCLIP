@@ -178,7 +178,7 @@ def main():
             lm = expected_latent_norms_dict[args.gan]['Z']
         expected_latent_norm = lm[0] * args.truncation + lm[1]
     else:
-        expected_latent_norm = expected_latent_norms_dict[args.gan][1]
+        expected_latent_norm = expected_latent_norms_dict[args.gan]['Z'][1]
 
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
