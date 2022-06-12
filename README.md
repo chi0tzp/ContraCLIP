@@ -52,62 +52,51 @@ For using the aforementioned virtual environment in a Jupyter Notebook, you need
 
 ## Prerequisite pre-trained models and pre-trained ContraCLIP models
 
-Download the prerequisite pre-trained models (GAN generators and ArcFace), as well as pre-trained ContraCLIP models as follows:
+Download the prerequisite pre-trained models (GAN generators and various pre-trained detectors, such as ArcFace, FairFace, etc), as well as pre-trained ContraCLIP models as follows:
 
 ```bash
 (contra-clip-venv) $ python download.py
 ```
 
-This will create a directory `models/pretrained` with the following sub-directories (~7.4 GiB):
-
+This will create a directory `models/pretrained` with the following sub-directories (~3.3 GiB):
 ```
 ./models/pretrained/
+├── genforce
+│   ├── pggan_car256.pth
+│   ├── pggan_celebahq1024.pth
+│   ├── pggan_church256.pth
+│   ├── stylegan2_afhqcat512.pth
+│   ├── stylegan2_afhqdog512.pth
+│   ├── stylegan2_car512.pth
+│   ├── stylegan2_church256.pth
+│   └── stylegan2_ffhq1024.pth
 ├── arcface
 │   └── model_ir_se50.pth
-└── genforce
-    ├── pggan_bird256.pth
-    ├── pggan_car256.pth
-    ├── pggan_celebahq1024.pth
-    ├── pggan_church256.pth
-    ├── pggan_pottedplant256.pth
-    ├── stylegan2_afhqcat512.pth
-    ├── stylegan2_afhqdog512.pth
-    ├── stylegan2_afhqv2512.pth
-    ├── stylegan2_car512.pth
-    ├── stylegan2_cat256.pth
-    ├── stylegan2_church256.pth
-    ├── stylegan2_ffhq1024.pth
-    ├── stylegan2_horse256.pth
-    ├── stylegan2_metfaces1024.pth
-    ├── stylegan_animeface512.pth
-    ├── stylegan_animeportrait512.pth
-    ├── stylegan_apartment256.pth
-    ├── stylegan_artface512.pth
-    ├── stylegan_bedroom256.pth
-    ├── stylegan_car512.pth
-    ├── stylegan_cat256.pth
-    ├── stylegan_celebahq1024.pth
-    ├── stylegan_ffhq1024.pth
-    └── stylegan_tower256.pth
+├── au_detector
+│   └── disfa_adaptation_f0.pth
+├── celeba_attributes
+│   └── eval_predictor.pth.tar
+├── fairface
+│   ├── fairface_alldata_4race_20191111.pt
+│   └── res34_fair_align_multi_7_20190809.pt
+├── hopenet
+│   ├── hopenet_alpha1.pkl
+│   ├── hopenet_alpha2.pkl
+│   └── hopenet_robust_alpha1.pkl
+└── sfd
+    └── s3fd-619a316812.pth
 ```
 
 as well as, a directory `experiments/complete/` (if not already created by the user upon an experiment's completion) for downloading the ContraCLIP pre-trained models with the following sub-directories (~35 MiB):
 
 ```
 .experiments/complete/
-├── ContraCLIP_pggan_celebahq1024-Z-K11-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-expressions
-├── ContraCLIP_pggan_celebahq1024-Z-K9-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-attributes
-├── ContraCLIP_stylegan2_afhqcat512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-cats
-├── ContraCLIP_stylegan2_afhqdog512-W-K5-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-dogs
-├── ContraCLIP_stylegan2_car512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-cars
-├── ContraCLIP_stylegan2_ffhq1024-W-K11-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-expressions
-├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-linear-contrastive_0.5-expressions3
-├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-expressions3
-├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-styleclip-contrastive_0.5-expressions3
-└── ContraCLIP_stylegan2_ffhq1024-W-K9-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_0.5-attributes
+
+TODO
+
 ```
 
-We note that the pre-trained ArcFace model is used only during the evaluation stage (**no ID preserving loss is imposed during training**).
+We note that the pre-trained detectors (such as ArcFace) are used only during the evaluation stage (**no ID preserving loss is imposed during training**).
 
 
 
