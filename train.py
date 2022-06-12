@@ -48,7 +48,6 @@ def main():
         --temperature                : set contrastive loss temperature
         --log-freq                   : set number iterations per log
         --ckp-freq                   : set number iterations per checkpoint model saving
-        --tensorboard                : use TensorBoard
 
         ===[ CUDA ]=====================================================================================================
         --cuda                           : use CUDA during training (default)
@@ -91,7 +90,6 @@ def main():
     parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
     parser.add_argument('--log-freq', default=10, type=int, help='number of iterations per log')
     parser.add_argument('--ckp-freq', default=1000, type=int, help='number of iterations per checkpoint model saving')
-    parser.add_argument('--tensorboard', action='store_true', help="use tensorboard")
 
     # === CUDA ======================================================================================================= #
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")

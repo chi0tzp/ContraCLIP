@@ -1,6 +1,7 @@
 ipython
 ipykernel
 ipywidgets
+numpy
 sklearn
 scikit-image
 matplotlib
@@ -9,9 +10,6 @@ regex
 tqdm
 opencv-python
 requests
-tensorboard
 ninja
 Tinkerer
 tk
-# protobuf==3.20.1
-protobuf

@@ -8,13 +8,9 @@ from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 from torchvision import transforms
-# TODO: Should we use cudnn? How?
-import torch.backends.cudnn as cudnn
 import numpy as np
 import time
 import shutil
-from torch.utils.tensorboard import SummaryWriter
-from tensorboard import program
 from .aux import TrainingStatTracker, update_progress, update_stdout, sec2dhms
 from .config import SEMANTIC_DIPOLES_CORPORA, STYLEGAN_LAYERS
 
@@ -36,9 +32,6 @@ class Trainer(object):
         self.use_cuda = use_cuda
         self.multi_gpu = multi_gpu
 
-        # Use TensorBoard
-        self.tensorboard = self.params.tensorboard
-
         # Set output directory for current experiment (wip)
         self.wip_dir = osp.join("experiments", "wip", exp_dir)
 
@@ -56,17 +49,6 @@ class Trainer(object):
         os.makedirs(self.models_dir, exist_ok=True)
         # Define checkpoint model file
         self.checkpoint = osp.join(self.models_dir, 'checkpoint.pt')
-
-        # Setup TensorBoard
-        if self.tensorboard:
-            # Create tensorboard sub-directory
-            self.tb_dir = osp.join(self.wip_dir, 'tensorboard')
-            os.makedirs(self.tb_dir, exist_ok=True)
-            self.tb = program.TensorBoard()
-            self.tb.configure(argv=[None, '--logdir', self.tb_dir])
-            self.tb_url = self.tb.launch()
-            print("#. Start TensorBoard at {}".format(self.tb_url))
-            self.tb_writer = SummaryWriter(log_dir=self.tb_dir)
 
         # Array of iteration times
         self.iter_times = np.array([])
@@ -388,11 +370,6 @@ class Trainer(object):
 
             # Update statistics tracker
             self.stat_tracker.update(loss=loss.item())
-
-            # Update tensorboard plots for training statistics
-            if self.tensorboard:
-                for key, value in self.stat_tracker.get_means().items():
-                    self.tb_writer.add_scalar(key, value, iteration)
 
             # Get time of completion of current iteration
             iter_t = time.time()
