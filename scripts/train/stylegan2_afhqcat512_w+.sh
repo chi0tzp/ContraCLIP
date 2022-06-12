@@ -6,6 +6,7 @@
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_afhqcat512"
 stylegan_space="W+"
+stylegan_layer=11
 corpus="cats"
 
 # ==== Latent Support Sets (LSS) ==== #
@@ -40,6 +41,7 @@ fi
 python train.py --gan=${gan} \
                 --truncation=0.7 \
                 --stylegan-space=${stylegan_space} \
+                --stylegan-layer=${stylegan_layer} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --loss=${loss} \
