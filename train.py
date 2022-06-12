@@ -1,8 +1,10 @@
 import argparse
+import os.path as osp
+import json
 import torch
 import clip
 from lib import *
-from lib import GENFORCE_MODELS, SEMANTIC_DIPOLES_CORPORA
+from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA
 from models.load_generator import load_generator
 
 
@@ -100,6 +102,11 @@ def main():
     # Parse given arguments
     args = parser.parse_args()
 
+    # Check StyleGAN's layer
+    if (args.stylegan_layer < 0) or (args.stylegan_layer > STYLEGAN_LAYERS[args.gan]-1):
+        raise ValueError("Invalid stylegan_layer for given GAN ({}). Choose between 0 and {}".format(
+            args.gan, STYLEGAN_LAYERS[args.gan]-1))
+
     # Create output dir and save current arguments
     exp_dir = create_exp_dir(args)
 
@@ -159,6 +166,21 @@ def main():
         support_vectors_dim *= (args.stylegan_layer + 1)
     gamma_init = 1.0 / support_vectors_dim if args.gamma is None else args.gamma
 
+    # Get expected latent norm
+    with open(osp.join('models', 'expected_latent_norms.json'), 'r') as f:
+        expected_latent_norms_dict = json.load(f)
+
+    if 'stylegan' in args.gan:
+        if 'W+' in args.stylegan_space:
+            lm = expected_latent_norms_dict[args.gan]['W']['{}'.format(args.stylegan_layer)]
+        elif 'W' in args.stylegan_space:
+            lm = expected_latent_norms_dict[args.gan]['W']['0']
+        else:
+            lm = expected_latent_norms_dict[args.gan]['Z']
+        expected_latent_norm = lm[0] * args.truncation + lm[1]
+    else:
+        expected_latent_norm = expected_latent_norms_dict[args.gan][1]
+
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
     print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
@@ -169,7 +191,8 @@ def main():
     LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
                       num_support_dipoles=args.num_latent_support_dipoles,
                       support_vectors_dim=support_vectors_dim,
-                      gamma=gamma_init)
+                      gamma=gamma_init,
+                      expected_latent_norm=expected_latent_norm)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)

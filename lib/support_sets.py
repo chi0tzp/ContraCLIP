@@ -1,4 +1,3 @@
-import sys
 import torch
 from torch import nn
 import numpy as np
@@ -6,7 +5,7 @@ import numpy as np
 
 class SupportSets(nn.Module):
     def __init__(self, prompt_features=None, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None,
-                 gamma=None, beta=0.5):
+                 gamma=None, beta=0.5, expected_latent_norm=None):
         """SupportSets class constructor.
 
         Args:
@@ -16,6 +15,7 @@ class SupportSets(nn.Module):
             support_vectors_dim (int)      : dimensionality of support vectors (latent space dimensionality, z_dim)
             gamma (float)                  : RBF gamma parameter (by default set to the inverse of the latent space
                                              dimensionality)
+            expected_latent_norm (float)   : Expected norm of the latent codes for the given GAN type
         """
         super(SupportSets, self).__init__()
         self.prompt_features = prompt_features
@@ -88,25 +88,16 @@ class SupportSets(nn.Module):
             else:
                 self.gamma = gamma
             self.loggamma = torch.log(torch.scalar_tensor(self.gamma))
+            if expected_latent_norm is None:
+                raise ValueError("Invalid expected latent norm")
+            else:
+                self.expected_latent_norm = expected_latent_norm
 
             ############################################################################################################
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
             ############################################################################################################
-            # TODO
             # Choose r_min and r_max based on the expected latent norm -- i.e., the expected norm of a latent code drawn
             # from the latent space (Z or W) for the given truncation parameter
-            self.expected_latent_norm = 9.0128
-
-            # === Z-space ===
-            # self.r_min = 0.8 * 22.6186
-            # self.r_max = 0.9 * 22.6186
-            # === W-space (truncation=1.0) ===
-            # self.r_min = 0.8 * 11.0305
-            # self.r_max = 0.9 * 11.0305
-            # === W-space (truncation=0.7) ===
-            # self.r_min = 0.8 * 9.0128
-            # self.r_max = 0.9 * 9.0128
-
             self.r_min = 0.8 * self.expected_latent_norm
             self.r_max = 0.9 * self.expected_latent_norm
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
@@ -123,8 +114,8 @@ class SupportSets(nn.Module):
                 SUPPORT_SETS[k, :] = SV_set
 
             # Reshape support sets tensor into a matrix and initialize support sets matrix
-            self.SUPPORT_SETS.data = SUPPORT_SETS.reshape(self.num_support_sets,
-                                                          2 * self.num_support_dipoles * self.support_vectors_dim).clone()
+            self.SUPPORT_SETS.data = SUPPORT_SETS.reshape(
+                self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim).clone()
 
             ############################################################################################################
             ##                                          [ ALPHAS: (K, N) ]                                            ##
