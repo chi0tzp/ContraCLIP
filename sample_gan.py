@@ -1,4 +1,3 @@
-import sys
 import os
 import os.path as osp
 import argparse
@@ -35,8 +34,8 @@ def main():
     Options:
         -v, --verbose    : set verbose mode on
         --gan            : set GAN generator (see GENFORCE_MODELS in lib/config.py)
-        --stylegan-space : set StyleGAN latent space (Z, W) -- sampling is always done in Z space but in case this is
-                           set in W-space, both latent codes will stored
+        --stylegan-space : set StyleGAN latent space (Z, W, W+) -- sampling is always done in Z space but in case this
+                           is set in W/W+-space, all latent codes will be stored
         --truncation     : set W-space truncation parameter. If set, W-space codes will be truncated
         --num-samples    : set the number of latent codes to sample for generating images
         --cuda           : use CUDA (default)
@@ -45,7 +44,6 @@ def main():
     parser = argparse.ArgumentParser(description="Sample a pre-trained GAN latent space and generate images")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode on")
     parser.add_argument('--gan', type=str, required=True, choices=GENFORCE_MODELS.keys(), help='GAN generator')
-    parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W'), help="StyleGAN's latent space")
     parser.add_argument('--truncation', type=float, default=1.0, help="W-space truncation parameter")
     parser.add_argument('--num-samples', type=int, default=4, help="set number of latent codes to sample")
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")
@@ -83,8 +81,9 @@ def main():
         print("#. Build GAN generator model G and load with pre-trained weights...")
         print("  \\__GAN generator : {} (res: {})".format(args.gan, GENFORCE_MODELS[args.gan][1]))
         print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[args.gan][0]))
+
     G = load_generator(model_name=args.gan,
-                       latent_is_w=('stylegan' in args.gan) and (args.stylegan_space == 'W'),
+                       latent_is_w='stylegan' in args.gan,
                        verbose=args.verbose).eval()
 
     # Upload GAN generator model to GPU
@@ -118,11 +117,16 @@ def main():
         latent_code_dir = osp.join(out_dir, '{}'.format(latent_code_hash))
         os.makedirs(latent_code_dir, exist_ok=True)
 
-        if ('stylegan' in args.gan) and (args.stylegan_space == 'W'):
-            # Get the w code for the given z code, save both, and the generated image based on the w code
-            w = G.get_w(z, truncation=args.truncation)[:, 0, :]
+        if 'stylegan' in args.gan:
+            # Get the w+ and w codes for the given z code, save them, and the generated image based on the w code
+            # Note that w+ has torch.Size([1, 512]) and w torch.Size([18, 512]) -- the latter is just a repetition of
+            # the w code for all 18 layers
+            w_plus = G.get_w(z, truncation=args.truncation)[0, :, :]
+            w = w_plus[0, :].unsqueeze(0)
             torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
             torch.save(w.cpu(), osp.join(latent_code_dir, 'latent_code_w.pt'))
+            torch.save(w_plus.cpu(), osp.join(latent_code_dir, 'latent_code_w+.pt'))
+
             img_w = G(w).cpu()
             tensor2image(img_w, adaptive=True).save(osp.join(latent_code_dir, 'image_w.jpg'),
                                                     "JPEG", quality=95, optimize=True, progressive=True)
