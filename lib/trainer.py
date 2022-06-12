@@ -8,6 +8,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
 from torchvision import transforms
+# TODO: Should we use cudnn? How?
 import torch.backends.cudnn as cudnn
 import numpy as np
 import time
@@ -15,7 +16,7 @@ import shutil
 from torch.utils.tensorboard import SummaryWriter
 from tensorboard import program
 from .aux import TrainingStatTracker, update_progress, update_stdout, sec2dhms
-from .config import SEMANTIC_DIPOLES_CORPORA, GENFORCE_MODELS
+from .config import SEMANTIC_DIPOLES_CORPORA, STYLEGAN_LAYERS
 
 
 class DataParallelPassthrough(nn.DataParallel):
@@ -44,7 +45,7 @@ class Trainer(object):
         # Set directory for completed experiment
         self.complete_dir = osp.join("experiments", "complete", exp_dir)
 
-        # Create log sub-directory and define stat.json file
+        # Create log subdirectory and define stat.json file
         self.stats_json = osp.join(self.wip_dir, 'stats.json')
         if not osp.isfile(self.stats_json):
             with open(self.stats_json, 'w') as out:
@@ -88,6 +89,8 @@ class Trainer(object):
     def contrastive_loss(self, img_batch, txt_batch):
         n_img, d_img = img_batch.shape
         n_txt, d_txt = txt_batch.shape
+
+        # TODO: assert that dimensions are the same?
 
         # Normalise image and text batches
         img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
@@ -155,10 +158,10 @@ class Trainer(object):
         """GANxPlainer training function.
 
         Args:
-            generator           : pre-trained GAN generator
-            latent_support_sets : TODO: +++
-            corpus_support_sets : TODO: +++
-            clip_model          : pre-trained CLIP model
+            generator           : non-trainable (pre-trained) GAN generator
+            latent_support_sets : trainable LSS model -- interpretable latent paths model
+            corpus_support_sets : non-trainable CSS model -- non-linear paths in the CLIP space
+            clip_model          : non-trainable (pre-trained) CLIP model
 
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
@@ -182,9 +185,6 @@ class Trainer(object):
             clip_model.eval()
             latent_support_sets.train()
 
-        # Get latent space dimensionality
-        G_dim_z = GENFORCE_MODELS[self.params.gan][1]
-
         # Set latent support sets (LSS) optimizer
         latent_support_sets_optim = torch.optim.Adam(latent_support_sets.parameters(), lr=self.params.lr)
 
@@ -203,8 +203,6 @@ class Trainer(object):
             generator = DataParallelPassthrough(generator)
             # Parallelize CLIP model
             clip_model = DataParallelPassthrough(clip_model)
-            # REVIEW: Should I use `cudnn.benchmark`?
-            cudnn.benchmark = True
 
         # Check starting iteration
         if starting_iter == self.params.max_iter:
@@ -232,7 +230,7 @@ class Trainer(object):
             latent_support_sets.zero_grad()
             clip_model.zero_grad()
 
-            # Sample latent codes from standard Gaussian -- torch.Size([batch_size, G_dim_z])
+            # Sample latent codes from standard Gaussian
             z = torch.randn(self.params.batch_size, generator.dim_z)
             if self.use_cuda:
                 z = z.cuda()
@@ -248,7 +246,8 @@ class Trainer(object):
 
             # Sample indices of shift vectors (`self.params.batch_size` out of `self.params.num_support_sets`)
             # target_support_sets_indices = torch.randint(0, self.params.num_support_sets, [self.params.batch_size])
-            target_support_sets_indices = torch.randint(0, latent_support_sets.num_support_sets, [self.params.batch_size])
+            target_support_sets_indices = torch.randint(0, latent_support_sets.num_support_sets,
+                                                        [self.params.batch_size])
             if self.use_cuda:
                 target_support_sets_indices = target_support_sets_indices.cuda()
 
@@ -302,7 +301,10 @@ class Trainer(object):
             # Generate images the shifted latent codes
             if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
                 latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
-                shift = F.pad(input=shift, pad=(0, (17 - self.params.stylegan_layer) * 512), mode='constant', value=0)
+                shift = F.pad(input=shift,
+                              pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
+                              mode='constant',
+                              value=0)
                 latent_code_shifted = latent_code_reshaped + shift
                 latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
                 img_shifted = generator(latent_code_shifted_reshaped)
@@ -325,55 +327,57 @@ class Trainer(object):
                     -1, 2 * corpus_support_sets.num_support_dipoles, corpus_support_sets.support_vectors_dim)
                 corpus_text_features_batch = torch.matmul(prompt_mask, corpus_text_features_batch).squeeze(1)
 
-                # Calculate loss
+                # Calculate cosine similarity loss
                 if self.params.loss == 'cossim':
                     loss = self.cosine_embedding_loss(clip_img_shifted_features, corpus_text_features_batch,
                                                       torch.ones(corpus_text_features_batch.shape[0]).to(
                                                           'cuda' if self.use_cuda else 'cpu'))
+                # Calculate contrastive loss
                 elif self.params.loss == 'contrastive':
                     loss = self.contrastive_loss(clip_img_shifted_features.float(), corpus_text_features_batch)
 
             ############################################################################################################
             ##                                                                                                        ##
-            ##                                           Linear Text Paths                                            ##
+            ##                                          Linear Text Paths                                             ##
             ##                                                                                                        ##
             ############################################################################################################
             elif self.params.linear:
                 corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
                     -1, 2 * corpus_support_sets.num_support_dipoles, corpus_support_sets.support_vectors_dim)
 
-                # Calculate loss
+                # Calculate cosine similarity loss
                 if self.params.loss == 'cossim':
                     loss = self.cosine_embedding_loss(clip_img_diff_features, prompt_sign * (
-                                corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1,
-                                                                      :]) - clip_img_features,
+                                corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :]) -
+                                                      clip_img_features,
                                                       torch.ones(corpus_text_features_batch.shape[0]).to(
                                                           'cuda' if self.use_cuda else 'cpu'))
+                # Calculate contrastive loss
                 elif self.params.loss == 'contrastive':
                     loss = self.contrastive_loss(clip_img_diff_features.float(), prompt_sign * (
                                 corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :]) -
                                                  clip_img_features)
 
-            # TODO: add comment
             ############################################################################################################
             ##                                                                                                        ##
-            ##                                                                                                        ##
+            ##                                        Non-linear Text Paths                                           ##
             ##                                                                                                        ##
             ############################################################################################################
             else:
                 # Calculate local text direction using CSS
                 local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
                                                                                                      clip_img_features)
-                # Calculate loss
+                # Calculate cosine similarity loss
                 if self.params.loss == 'cossim':
                     loss = self.cosine_embedding_loss(clip_img_diff_features, local_text_directions,
                                                       torch.ones(local_text_directions.shape[0]).to(
                                                           'cuda' if self.use_cuda else 'cpu'))
+                # Calculate contrastive loss
                 elif self.params.loss == 'contrastive':
                     loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
                                                  txt_batch=local_text_directions)
 
-            # Perform back-prop
+            # Back-propagate!
             loss.backward()
 
             # Update weights
@@ -432,8 +436,6 @@ class Trainer(object):
 
         print("#. Copy {} to {}...".format(self.wip_dir, self.complete_dir))
         try:
-            # REVIEW: Do not ignore checkpoint; copy it to the complete model dir
-            # shutil.copytree(src=self.wip_dir, dst=self.complete_dir, ignore=shutil.ignore_patterns('checkpoint.pt'))
             shutil.copytree(src=self.wip_dir, dst=self.complete_dir)
             print("  \\__Done!")
         except IOError as e:
