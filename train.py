@@ -101,9 +101,10 @@ def main():
     args = parser.parse_args()
 
     # Check StyleGAN's layer
-    if (args.stylegan_layer < 0) or (args.stylegan_layer > STYLEGAN_LAYERS[args.gan]-1):
-        raise ValueError("Invalid stylegan_layer for given GAN ({}). Choose between 0 and {}".format(
-            args.gan, STYLEGAN_LAYERS[args.gan]-1))
+    if 'stylegan' in args.gan:
+        if (args.stylegan_layer < 0) or (args.stylegan_layer > STYLEGAN_LAYERS[args.gan]-1):
+            raise ValueError("Invalid stylegan_layer for given GAN ({}). Choose between 0 and {}".format(
+                args.gan, STYLEGAN_LAYERS[args.gan]-1))
 
     # Create output dir and save current arguments
     exp_dir = create_exp_dir(args)

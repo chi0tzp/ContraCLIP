@@ -67,7 +67,6 @@ class PromptFeatures:
     def __init__(self, prompt_corpus, clip_model):
         self.prompt_corpus = prompt_corpus
         self.clip_model = clip_model.cpu()
-        # self.clip_model = clip_model.cuda()
         self.num_prompts = len(self.prompt_corpus)
         self.prompt_features_dim = 512
 
@@ -76,10 +75,6 @@ class PromptFeatures:
             self.clip_model.encode_text(clip.tokenize(self.prompt_corpus[t]).cpu()).unsqueeze(0) for t in
             range(len(self.prompt_corpus))
         ]
-        # prompt_features = [
-        #     self.clip_model.encode_text(clip.tokenize(self.prompt_corpus[t]).cuda()).unsqueeze(0) for t in
-        #     range(len(self.prompt_corpus))
-        # ]
         return torch.cat(prompt_features, dim=0)
 
 
