@@ -5,7 +5,7 @@ import numpy as np
 
 class SupportSets(nn.Module):
     def __init__(self, prompt_features=None, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None,
-                 gamma=None, beta=0.5, expected_latent_norm=None):
+                 gamma=None, beta=0.5, expected_latent_norm=20.0):
         """SupportSets class constructor.
 
         Args:
@@ -88,10 +88,7 @@ class SupportSets(nn.Module):
             else:
                 self.gamma = gamma
             self.loggamma = torch.log(torch.scalar_tensor(self.gamma))
-            if expected_latent_norm is None:
-                raise ValueError("Invalid expected latent norm")
-            else:
-                self.expected_latent_norm = expected_latent_norm
+            self.expected_latent_norm = expected_latent_norm
 
             ############################################################################################################
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
