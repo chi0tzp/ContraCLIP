@@ -39,7 +39,7 @@ $ source contra-clip-venv/bin/activate
 (contra-clip-venv) $ pip install --upgrade pip
 (contra-clip-venv) $ pip install -r requirements.txt
 (contra-clip-venv) $ pip install git+https://github.com/openai/CLIP.git
-(contra-clip-venv) $ pip install --pre torch torchvision torchaudio -f https://download.pytorch.org/whl/nightly/cu113/torch_nightly.html
+(contra-clip-venv) $ pip install --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/cu113
 ```
 
 For using the aforementioned virtual environment in a Jupyter Notebook, you need to manually add the kernel as follows:
