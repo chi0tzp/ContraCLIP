@@ -5,7 +5,7 @@
 
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
-stylegan_space="W+"
+stylegan_space="W"
 stylegan_layer=11
 corpus="complex"
 
