@@ -12,9 +12,11 @@ Authors official PyTorch implementation of the **[ContraCLIP: Interpretable GAN 
 
 | Semantic Dipole (i.e., contrasting sentences given in natural language) |                           Example                            |
 | ------------------------------------------------------------ | :----------------------------------------------------------: |
-| *"a picture of a **happy shaved man**." &#8594; "a picture of a **man** with a **beard crying**."* <br>[StyleGAN2@FFHQ] | <img src="figs/examples/stylegan2ffhq_happyshaved2beardcrying.gif" width="500"/> |
+| *"a picture of an **angry shaved man**." &#8594; "a picture of a **man** with a **beard crying**."* <br>[StyleGAN2@FFHQ] | <img src="figs/examples/stylegan2ffhq_angryshaved2beardcrying.gif" width="500"/> |
+| *"a picture of a person with **open eyes**." &#8594; "a picture of a person with **closed eyes**."* <br>[StyleGAN2@FFHQ] | <img src="figs/examples/stylegan2ffhq_eyes.gif" width="500"/> |
 | *"a picture of a **young person**." &#8594; "a picture of an **old person**."* <br>[StyleGAN2@FFHQ] | <img src="figs/examples/stylegan2ffhq_young2old.gif" width="500"/> |
 | *"a picture of a **man** with **hair**." &#8594; "a picture of a **bald man**."* <br>[ProgGAN@CelebA-HQ] | <img src="figs/examples/pggancelebahq_hair2bald.gif" width="500"/> |
+| *"a picture of a person with **happy** face." &#8594; "a picture of a person with **surprised** face."* <br>[ProgGAN@CelebA-HQ] | <img src="figs/examples/pggancelebahq_happy2surprised.gif" width="500"/> |
 | *"a picture of a **face without makeup**." &#8594; "a picture of a **face with makeup**."* <br>[ProgGAN@CelebA-HQ] | <img src="figs/examples/pggancelebahq_makeup.gif" width="500"/> |
 | *"a picture of an **ugly cat**." &#8594; "a picture of a **cute cat**."* <br>[StyleGAN2@AFHQ-Cats] | <img src="figs/examples/stylegan2afhqcats_ugly2cute.gif" width="500"/> |
 | *"a picture of a **dog** with **small eyes**." &#8594; "a picture of a **dog** with **big eyes**."* <br>[StyleGAN2@AFHQ-Dogs] | <img src="figs/examples/stylegan2afhqdogs_smalleyes2bigeyes.gif" width="500"/> |
