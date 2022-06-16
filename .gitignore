@@ -13,4 +13,5 @@ models/pretrained/
 
 !experiments/
 experiments/*
+experiments/latent_codes/TMP/
 !experiments/latent_codes/

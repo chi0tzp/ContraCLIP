@@ -17,12 +17,12 @@ SEMANTIC_DIPOLES_CORPORA = {
              "a picture of a male."],
             ["a picture of an old person.",
              "a picture of a young person."],
-            ["a picture of a smiling face.",
-             "a picture of a face in neutral expression."],
-            ["a picture of a bald person.",
-             "a picture of a person with long hair."],
-            ["a picture of a face with beard.",
-             "a picture of a shaved face."],
+            ["a picture of a smiling person.",
+             "a picture of a person crying."],
+            ["a picture of a bald man.",
+             "a picture of a man with hair."],
+            ["a picture of a man with beard.",
+             "a picture of a shaved man."],
             ["a picture of a face with makeup.",
              "a picture of a face without makeup."],
             ["a picture of a person with closed eyes.",
@@ -30,7 +30,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a picture of a person with tanned skin.",
              "a picture of a person with pale skin."],
         ],
-
     'expressions':
         [
             ["a picture of a person with happy face.",
@@ -56,7 +55,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a picture of a person with fearful face.",
              "a picture of a person with happy face."],
         ],
-
     'expressions3':
         [
             ["a picture of a person with happy face.",
@@ -86,7 +84,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a picture of a dog with big eyes.",
              "a picture of a dog with small eyes."]
         ],
-
     'cats':
         [
             ["a picture of a long haired cat.",
@@ -96,7 +93,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a picture of a cat with big ears.",
              "a picture of a cat with small ears."]
         ],
-
     'cars':
         [
             ["a picture of a jeep.",
