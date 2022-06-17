@@ -15,7 +15,7 @@ class SupportSets(nn.Module):
             support_vectors_dim (int)      : dimensionality of support vectors (latent space dimensionality, z_dim)
             gamma (float)                  : RBF gamma parameter (by default set to the inverse of the latent space
                                              dimensionality)
-            expected_latent_norm (float)   : Expected norm of the latent codes for the given GAN type
+            expected_latent_norm (float)   : expected norm of the latent codes for the given GAN type
         """
         super(SupportSets, self).__init__()
         self.prompt_features = prompt_features
@@ -94,7 +94,7 @@ class SupportSets(nn.Module):
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
             ############################################################################################################
             # Choose r_min and r_max based on the expected latent norm -- i.e., the expected norm of a latent code drawn
-            # from the latent space (Z or W) for the given truncation parameter
+            # from the latent space (Z, W, or W+) for the given truncation parameter
             self.r_min = 0.8 * self.expected_latent_norm
             self.r_max = 0.9 * self.expected_latent_norm
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
