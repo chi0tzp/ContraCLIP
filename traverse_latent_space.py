@@ -1,3 +1,4 @@
+import sys
 import argparse
 import os
 import os.path as osp
@@ -7,7 +8,7 @@ import torch.nn.functional as F
 from PIL import Image, ImageDraw
 import json
 from torchvision.transforms import ToPILImage
-from lib import SupportSets, GENFORCE_MODELS, update_progress, update_stdout
+from lib import SupportSets, GENFORCE_MODELS, update_progress, update_stdout, STYLEGAN_LAYERS
 from models.load_generator import load_generator
 
 
@@ -24,7 +25,6 @@ class ModelArgs:
         self.__dict__.update(kwargs)
 
 
-# Check whether this can be replaced by `tensor2image` in lib/aux.py
 def tensor2image(tensor, img_size=None, adaptive=False):
     # Squeeze tensor image
     tensor = tensor.squeeze(dim=0)
@@ -49,39 +49,39 @@ def one_hot(dims, value, idx):
     return vec
 
 
-def create_strip(image_list, N=5, size=256):
+def create_strip(image_list, N=5, strip_size=256):
     step = len(image_list) // N
-    transformed_images_strip = Image.new('RGB', (N * size, size))
+    transformed_images_strip = Image.new('RGB', (N * strip_size, strip_size))
     for i in range(N):
         # Draw rectangle around the central image
         if i == N // 2:
-            draw_rect = ImageDraw.Draw(image_list[i * step].resize(size=(size, size)))
+            draw_rect = ImageDraw.Draw(image_list[i * step].resize((strip_size, strip_size)))
             rect_width = 5
             rect_colour = (175, 5, 25)
-            draw_rect.rectangle(xy=((0, 0), (size, size)), outline=rect_colour, width=rect_width)
-        transformed_images_strip.paste(image_list[i * step].resize(size=(size, size)), (i * size, 0))
+            draw_rect.rectangle(xy=((0, 0), (strip_size, strip_size)), outline=rect_colour, width=rect_width)
+        transformed_images_strip.paste(image_list[i * step].resize((strip_size, strip_size)), (i * strip_size, 0))
 
+    return transformed_images_strip
+
+
+def create_gif(image_list, gif_size=256):
     transformed_images_gif_frames = []
     for i in range(len(image_list)):
-        gif_frame = Image.new('RGB', (2 * size, size))
-        gif_frame.paste(image_list[len(image_list) // 2].resize(size=(size, size)), (0, 0))
-        gif_frame.paste(image_list[i].resize(size=(size, size)), (size, 0))
+        # Create gif frame
+        gif_frame = Image.new('RGB', (2 * gif_size, gif_size))
+        gif_frame.paste(image_list[len(image_list) // 2].resize((gif_size, gif_size)), (0, 0))
+        gif_frame.paste(image_list[i].resize((gif_size, gif_size)), (gif_size, 0))
 
         # Draw progress bar
         draw_bar = ImageDraw.Draw(gif_frame)
         bar_h = 12
         bar_colour = (252, 186, 3)
-        draw_bar.rectangle(xy=((size, size - bar_h), ((1 + (i / len(image_list))) * size, size)), fill=bar_colour)
-
-        # Draw rectangle around the moving part
-        # draw_rect = ImageDraw.Draw(gif_frame)
-        # rect_width = 5
-        # rect_colour = (0, 0, 0)
-        # draw_rect.rectangle(xy=((size, 0), (2 * size, size)), outline=rect_colour, width=rect_width)
+        draw_bar.rectangle(xy=((gif_size, gif_size - bar_h), ((1 + (i / len(image_list))) * gif_size, gif_size)),
+                           fill=bar_colour)
 
         transformed_images_gif_frames.append(gif_frame)
 
-    return transformed_images_strip, transformed_images_gif_frames
+    return transformed_images_gif_frames
 
 
 def get_concat_h(img_file_orig,
@@ -161,13 +161,13 @@ def main():
                                                        "images per path)")
     parser.add_argument('--img-size', type=int, help="set size of saved generated images (if not set, use the output "
                                                      "size of the respective GAN generator)")
-    parser.add_argument('--img-quality', type=int, default=75, help="set JPEG image quality")
+    parser.add_argument('--img-quality', type=int, default=50, help="set JPEG image quality")
 
+    parser.add_argument('--strip', action='store_true', help="create traversal strip images")
     parser.add_argument('--strip-number', type=int, default=5, help="set number of images per strip")
-
-    parser.add_argument('--gif', action='store_true', help="Create GIF traversals")
-    # parser.add_argument('--gif-size', type=int, default=256, help="set gif resolution")
-    parser.add_argument('--gif-size', type=int, default=196, help="set gif resolution")
+    parser.add_argument('--strip-size', type=int, default=256, help="set strip height")
+    parser.add_argument('--gif', action='store_true', help="create GIF traversals")
+    parser.add_argument('--gif-size', type=int, default=256, help="set gif resolution")
     parser.add_argument('--gif-fps', type=int, default=30, help="set gif frame rate")
     # ================================================================================================================ #
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")
@@ -403,7 +403,7 @@ def main():
                         shift = args.eps * LSS(support_sets_mask,
                                                latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
                     latent_code = latent_code + \
-                        F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                        F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
                               mode='constant', value=0).reshape_as(latent_code)
                     current_path_latent_code = latent_code
                 else:
@@ -415,7 +415,7 @@ def main():
                 # Store latent codes and shifts
                 if cnt == args.shift_leap:
                     if ('stylegan' in gan) and (stylegan_space == 'W+'):
-                        current_path_latent_shifts.append(F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512), mode='constant', value=0).reshape_as(latent_code))
+                        current_path_latent_shifts.append(F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512), mode='constant', value=0).reshape_as(latent_code))
                     else:
                         current_path_latent_shifts.append(shift)
                     current_path_latent_codes.append(current_path_latent_code)
@@ -444,7 +444,7 @@ def main():
                         shift = -args.eps * LSS(support_sets_mask,
                                                 latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
                     latent_code = latent_code + \
-                        F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                        F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
                               mode='constant', value=0).reshape_as(latent_code)
                     current_path_latent_code = latent_code
                 else:
@@ -457,7 +457,7 @@ def main():
                 if cnt == args.shift_leap:
                     if ('stylegan' in gan) and (stylegan_space == 'W+'):
                         current_path_latent_shifts = \
-                            [F.pad(input=shift, pad=(0, (17 - stylegan_layer) * 512),
+                            [F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
                                    mode='constant', value=0).reshape_as(latent_code)] + current_path_latent_shifts
                     else:
                         current_path_latent_shifts = [shift] + current_path_latent_shifts
@@ -481,7 +481,6 @@ def main():
                 with torch.no_grad():
                     transformed_img.append(G(current_path_latent_codes_batches[t] +
                                              current_path_latent_shifts_batches[t]))
-                    # transformed_img.append(G(current_path_latent_codes_batches[t]))
             transformed_img = torch.cat(transformed_img)
 
             # Convert tensors (transformed images) into PIL images
@@ -501,25 +500,22 @@ def main():
                     transformed_images[t].save(osp.join(latent_code_dir, 'original_image.jpg'),
                                                "JPEG", quality=95, optimize=True, progressive=True)
 
-            # Create strip of images and save in jpg and gif
-            transformed_images_strip, transformed_images_gif_frames = create_strip(image_list=transformed_images,
-                                                                                   N=args.strip_number,
-                                                                                   size=args.gif_size)
+            # Create strip of images
+            transformed_images_strip = create_strip(image_list=transformed_images, N=args.strip_number,
+                                                    strip_size=args.strip_size)
             transformed_images_strip.save(osp.join(transformed_images_strips_root_dir,
                                                    'path_{:03d}_strip.jpg'.format(dim)),
                                           "JPEG", quality=args.img_quality, optimize=True, progressive=True)
 
-            # Save strip gif
-            # im = Image.new(mode='RGB', size=((args.strip_number + 1) * args.gif_size, args.gif_size))
+            # Save gif (static original image + traversal gif)
+            transformed_images_gif_frames = create_gif(transformed_images, gif_size=args.gif_size)
             im = Image.new(mode='RGB', size=(2 * args.gif_size, args.gif_size))
             im.save(fp=osp.join(transformed_images_strips_root_dir, 'path_{:03d}.gif'.format(dim)),
                     append_images=transformed_images_gif_frames,
                     save_all=True,
                     optimize=True,
                     loop=0,
-                    # duration=1000 // args.gif_fps
-                    duration=1000 // args.gif_fps
-                    )
+                    duration=1000 // args.gif_fps)
 
             # Append latent paths
             paths_latent_codes.append(current_path_latent_codes.unsqueeze(0))
@@ -537,99 +533,51 @@ def main():
             print()
             print()
 
-    # Collate traversal GIFs
-    if args.gif:
-        # Build results file structure
-        structure = dict()
-        generated_img_subdirs = [dI for dI in os.listdir(out_dir) if os.path.isdir(osp.join(out_dir, dI)) and
-                                 dI != 'paths_gifs']
-        generated_img_subdirs.sort()
-        for img_id in generated_img_subdirs:
-            structure.update({img_id: {}})
-            path_images_dir = osp.join(out_dir, '{}'.format(img_id), 'paths_images')
-            path_images_subdirs = [dI for dI in os.listdir(path_images_dir)
-                                   if os.path.isdir(os.path.join(path_images_dir, dI))]
-            path_images_subdirs.sort()
-            for item in path_images_subdirs:
-                structure[img_id].update({item: [dI for dI in os.listdir(osp.join(path_images_dir, item))
-                                                 if osp.isfile(os.path.join(path_images_dir, item, dI))]})
-
-        # Create directory for storing traversal GIFs
-        os.makedirs(osp.join(out_dir, 'paths_gifs'), exist_ok=True)
-
+    # Create summarizing MD files
+    if args.gif or args.strip:
         # For each interpretable path (warping function), collect the generated image sequences for each original latent
         # code and collate them into a GIF file
-        print("#. Collate GIFs...")
+        print("#. Write summarizing MD files...")
 
         # Write .md summary files
-        md_summary_file = osp.join(out_dir, 'results.md')
-        md_summary_strips_file = osp.join(out_dir, 'results_strips.md')
-        md_summary_file_f = open(md_summary_file, "w")
-        md_summary_strips_file_f = open(md_summary_strips_file, "w")
-        md_summary_file_f.write("# Experiment: {}\n".format(args.exp))
-        md_summary_strips_file_f.write("# Experiment: {}\n".format(args.exp))
+        if args.gif:
+            md_summary_file = osp.join(out_dir, 'results.md')
+            md_summary_file_f = open(md_summary_file, "w")
+            md_summary_file_f.write("# Experiment: {}\n".format(args.exp))
 
-        num_of_frames = list()
-        for dim in range(num_gen_paths):
-            if args.verbose:
-                update_progress("  \\__path: {:03d}/{:03d} ".format(dim + 1, num_gen_paths), num_gen_paths, dim + 1)
+        if args.strip:
+            md_summary_strips_file = osp.join(out_dir, 'results_strips.md')
+            md_summary_strips_file_f = open(md_summary_strips_file, "w")
+            md_summary_strips_file_f.write("# Experiment: {}\n".format(args.exp))
 
-            gif_frames = []
-            for img_id in structure.keys():
-                original_img_file = osp.join(out_dir, '{}'.format(img_id), 'original_image.jpg')
-                shifted_images_dir = osp.join(out_dir, '{}'.format(img_id), 'paths_images', 'path_{:03d}'.format(dim))
+        if args.gif or args.strip:
+            for dim in range(num_gen_paths):
+                # Append to .md summary files
+                if args.gif:
+                    md_summary_file_f.write("### \"{}\" &#8594; \"{}\"\n".format(semantic_dipoles[dim][1],
+                                                                                 semantic_dipoles[dim][0]))
+                    md_summary_file_f.write("<p align=\"center\">\n")
+                if args.strip:
+                    md_summary_strips_file_f.write("## \"{}\" &#8594; \"{}\"\n".format(semantic_dipoles[dim][1],
+                                                                                       semantic_dipoles[dim][0]))
+                    md_summary_strips_file_f.write("<p align=\"center\">\n")
 
-                row_frames = []
-                img_id_num_of_frames = 0
-                for t in range(len(structure[img_id]['path_{:03d}'.format(dim)])):
-                    img_id_num_of_frames += 1
-                for t in range(len(structure[img_id]['path_{:03d}'.format(dim)])):
-                    shifted_img_file = osp.join(shifted_images_dir, '{:06d}.jpg'.format(t))
-                    # Concatenate `original_img_file` and `shifted_img_file`
-                    row_frames.append(get_concat_h(img_file_orig=original_img_file,
-                                                   shifted_img_file=shifted_img_file,
-                                                   size=args.gif_size,
-                                                   s=t,
-                                                   shift_steps=img_id_num_of_frames))
-                num_of_frames.append(img_id_num_of_frames)
-                gif_frames.append(row_frames)
+                for lc in latent_codes_dirs:
+                    if args.gif:
+                        md_summary_file_f.write("<img src=\"{}\" width=\"450\" class=\"center\"/>\n".format(
+                            osp.join(lc, 'paths_strips', 'path_{:03d}.gif'.format(dim))))
+                    if args.strip:
+                        md_summary_strips_file_f.write("<img src=\"{}\" style=\"width: 75vw\"/>\n".format(
+                            osp.join(lc, 'paths_strips', 'path_{:03d}_strip.jpg'.format(dim))))
+                if args.gif:
+                    md_summary_file_f.write("</p>\n")
+                if args.strip:
+                    md_summary_strips_file_f.write("</p>\n")
 
-            if len(set(num_of_frames)) > 1:
-                print("#. Warning: Inconsistent number of frames for image sequences: {}".format(num_of_frames))
-
-            # Create full GIF frames
-            full_gif_frames = []
-            for f in range(int(num_of_frames[0])):
-                gif_f = Image.new('RGB', (2 * args.gif_size, len(structure) * args.gif_size))
-                for i in range(len(structure)):
-                    gif_f.paste(gif_frames[i][f], (0, i * args.gif_size))
-                full_gif_frames.append(gif_f)
-
-            # Save gif
-            im = Image.new(mode='RGB', size=(2 * args.gif_size, len(structure) * args.gif_size))
-            gif_file = osp.join(out_dir, 'paths_gifs', 'path_{:03d}.gif'.format(dim))
-            im.save(
-                fp=gif_file,
-                append_images=full_gif_frames,
-                save_all=True,
-                optimize=True,
-                loop=0,
-                duration=1000 // args.gif_fps)
-
-            # Append to .md summary files
-            md_summary_file_f.write("## \"{}\" &#8594; \"{}\"\n".format(semantic_dipoles[dim][1],
-                                                                        semantic_dipoles[dim][0]))
-            md_summary_file_f.write("<img src=\"{}\" width=\"450\"/>\n".format(
-                osp.join('paths_gifs', 'path_{:03d}.gif'.format(dim))))
-
-            md_summary_strips_file_f.write("## \"{}\" &#8594; \"{}\"\n".format(semantic_dipoles[dim][1],
-                                                                               semantic_dipoles[dim][0]))
-            for i in range(num_of_latent_codes):
-                md_summary_strips_file_f.write("<img src=\"{}\" style=\"width: 75vw\"/>\n".format(
-                    osp.join('{}'.format(latent_codes_dirs[i]), 'paths_strips', 'path_{:03d}.gif'.format(dim))))
-
-        md_summary_file_f.close()
-        md_summary_strips_file_f.close()
+        if args.gif:
+            md_summary_file_f.close()
+        if args.strip:
+            md_summary_strips_file_f.close()
 
 
 if __name__ == '__main__':
