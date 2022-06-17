@@ -22,7 +22,7 @@ temperature=1.0
 beta=0.75
 
 # ============ Training ============= #
-batch_size=11
+batch_size=14
 max_iter=10000
 # =================================== #
 
