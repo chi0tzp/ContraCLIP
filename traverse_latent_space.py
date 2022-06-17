@@ -1,4 +1,3 @@
-import sys
 import argparse
 import os
 import os.path as osp
@@ -82,34 +81,6 @@ def create_gif(image_list, gif_size=256):
         transformed_images_gif_frames.append(gif_frame)
 
     return transformed_images_gif_frames
-
-
-def get_concat_h(img_file_orig,
-                 shifted_img_file,
-                 size,
-                 s,
-                 shift_steps,
-                 draw_progress_bar=True):
-    img_orig = Image.open(img_file_orig).resize((size, size))
-    img_orig_w = img_orig.width
-    img_orig_h = img_orig.height
-
-    img_shifted = Image.open(shifted_img_file).resize((size, size))
-    img_shifted_w = img_shifted.width
-
-    dst = Image.new('RGB', (img_orig_w + img_shifted_w, img_orig_h))
-    dst.paste(img_orig, (0, 0))
-    dst.paste(img_shifted, (img_orig_w, 0))
-
-    # Draw progress bar
-    if draw_progress_bar:
-        draw = ImageDraw.Draw(dst)
-        bar_h = 7
-        bar_color = (252, 186, 3)
-        # draw.rectangle(xy=[(size, size - bar_h), ((1 + s / shift_steps) * size, size)], fill=bar_color)
-        draw.rectangle(xy=((size, size - bar_h), ((1 + s / shift_steps) * size, size)), fill=bar_color)
-
-    return dst
 
 
 def main():
