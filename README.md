@@ -54,10 +54,10 @@ For using the aforementioned virtual environment in a Jupyter Notebook, you need
 
 ## Prerequisite pre-trained models and pre-trained ContraCLIP models
 
-Download the prerequisite pre-trained models (GAN generators and various pre-trained detectors, such as ArcFace, FairFace, etc), as well as pre-trained ContraCLIP models as follows:
+Download the prerequisite pre-trained models (GAN generators and various pre-trained detectors, such as ArcFace, FairFace, etc), as well as (optionally) pre-trained ContraCLIP models (by passing `-m` or `----contraclip-models`) as follows:
 
 ```bash
-(contra-clip-venv) $ python download.py
+(contra-clip-venv) $ python download.py -m
 ```
 
 This will create a directory `models/pretrained` with the following sub-directories (~3.3 GiB):
@@ -89,13 +89,23 @@ This will create a directory `models/pretrained` with the following sub-director
     └── s3fd-619a316812.pth
 ```
 
-as well as, a directory `experiments/complete/` (if not already created by the user upon an experiment's completion) for downloading the ContraCLIP pre-trained models with the following sub-directories (~35 MiB):
+as well as, a directory `experiments/complete/` (if not already created by the user upon an experiment's completion) for downloading the ContraCLIP pre-trained models with the following sub-directories (~160 MiB):
 
 ```
 .experiments/complete/
-
-TODO
-
+├── ContraCLIP_pggan_celebahq1024-Z-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+├── ContraCLIP_stylegan2_afhqcat512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
+├── ContraCLIP_stylegan2_afhqcat512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
+├── ContraCLIP_stylegan2_afhqdog512-W+-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
+├── ContraCLIP_stylegan2_afhqdog512-W-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
+├── ContraCLIP_stylegan2_car512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
+├── ContraCLIP_stylegan2_car512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
+├── ContraCLIP_stylegan2_ffhq1024-W+-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
+├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
+└── ContraCLIP_stylegan2_ffhq1024-W-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
 ```
 
 We note that the pre-trained detectors (such as ArcFace) are used only during the evaluation stage (**no ID preserving loss is imposed during training**).

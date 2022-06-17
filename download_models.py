@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path as osp
+import argparse
 import hashlib
 import tarfile
 import time
@@ -50,14 +51,32 @@ def download(src, sha256sum, dest):
 def main():
     """Download pre-trained GAN generators and various pre-trained detectors (used only during testing), as well as
     pre-trained ContraCLIP models:
-        -- GenForce GAN generators [1]
-        -- SFD face detector [2]
-        -- ArcFace [3]
-        -- FairFace [4]
-        -- Hopenet [5]
-        -- AU detector [6] for 12 DISFA [7] Action Units
-        -- Facial attributes detector [8] for 5 CelebA [9] attributes
-        -- ContraCLIP [10]
+    -- GenForce GAN generators [1]
+    -- SFD face detector [2]
+    -- ArcFace [3]
+    -- FairFace [4]
+    -- Hopenet [5]
+    -- AU detector [6] for 12 DISFA [7] Action Units
+    -- Facial attributes detector [8] for 5 CelebA [9] attributes
+    -- ContraCLIP [10] pre-trained models:
+        StyleGAN2@FFHQ
+            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
+            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
+            ContraCLIP_stylegan2_ffhq1024-W+-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+            ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
+            ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
+            ContraCLIP_stylegan2_ffhq1024-W-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+        ProgGAN@CelebA-HQ:
+            ContraCLIP_pggan_celebahq1024-Z-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+        StyleGAN2@AFHQ-Cats
+            ContraCLIP_stylegan2_afhqcat512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
+            ContraCLIP_stylegan2_afhqcat512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
+        StyleGAN2@AFHQ-Dogs
+            ContraCLIP_stylegan2_afhqdog512-W+-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
+            ContraCLIP_stylegan2_afhqdog512-W-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
+        StyleGAN2@AFHQ-Cars
+            ContraCLIP_stylegan2_car512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
+            ContraCLIP_stylegan2_car512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
 
     References:
          [1] https://genforce.github.io/
@@ -80,6 +99,10 @@ def main():
         [10] Tzelepis, C., Oldfield, J., Tzimiropoulos, G., & Patras, I. (2022). ContraCLIP: Interpretable GAN
              generation driven by pairs of contrasting sentences. arXiv preprint arXiv:2206.02104.
     """
+    parser = argparse.ArgumentParser(description="Download pre-trained models")
+    parser.add_argument('-m', '--contraclip-models', action='store_true', help="download pre-trained ContraCLIP models")
+    args = parser.parse_args()
+
     # Create pre-trained models root directory
     pretrained_models_root = osp.join('models', 'pretrained')
     os.makedirs(pretrained_models_root, exist_ok=True)
@@ -143,14 +166,15 @@ def main():
         download(src=CELEBA_ATTRIBUTES[0], sha256sum=CELEBA_ATTRIBUTES[1], dest=pretrained_models_root)
 
     # Download pre-trained ContraCLIP models
-    # pretrained_contraclip_root = osp.join('experiments', 'complete')
-    # os.makedirs(pretrained_contraclip_root, exist_ok=True)
-    #
-    # print("#. Download pre-trained ContraCLIP models...")
-    # print("  \\__.ContraCLIP pre-trained models...")
-    # download(src=ContraCLIP_models[0],
-    #          sha256sum=ContraCLIP_models[1],
-    #          dest=pretrained_contraclip_root)
+    if args.contraclip_models:
+        pretrained_contraclip_root = osp.join('experiments', 'complete')
+        os.makedirs(pretrained_contraclip_root, exist_ok=True)
+
+        print("#. Download pre-trained ContraCLIP models...")
+        print("  \\__.ContraCLIP pre-trained models...")
+        download(src=ContraCLIP_models[0],
+                 sha256sum=ContraCLIP_models[1],
+                 dest=pretrained_contraclip_root)
 
 
 if __name__ == '__main__':
