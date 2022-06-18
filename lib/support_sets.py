@@ -95,8 +95,12 @@ class SupportSets(nn.Module):
             ############################################################################################################
             # Choose r_min and r_max based on the expected latent norm -- i.e., the expected norm of a latent code drawn
             # from the latent space (Z, W, or W+) for the given truncation parameter
-            self.r_min = 0.8 * self.expected_latent_norm
-            self.r_max = 0.9 * self.expected_latent_norm
+            # REVIEW:
+            # self.r_min = 0.8 * self.expected_latent_norm
+            # self.r_max = 0.9 * self.expected_latent_norm
+            self.r_min = 0.1
+            self.r_max = 1.25 * self.expected_latent_norm
+
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
             self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
                                                              2 * self.num_support_dipoles * self.support_vectors_dim))
@@ -135,12 +139,12 @@ class SupportSets(nn.Module):
             # REVIEW: New initialisation
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
             LOGGAMMA = torch.zeros(self.num_support_sets, 1)
-            beta = 0.7
+            beta = 0.25
             for k in range(self.num_support_sets):
                 g = -np.log(beta) / ((2 * self.radii[k]) ** 2)
                 LOGGAMMA[k] = torch.log(torch.Tensor([g]))
             self.LOGGAMMA.data = LOGGAMMA.clone()
-    
+
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
         support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)

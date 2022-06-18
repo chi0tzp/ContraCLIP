@@ -4,7 +4,7 @@
 # =================================== #
 
 # ======== Exp-ID ======== #
-exp_id="new_wgs_init"
+exp_id="wgs_init_dbg"
 
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
@@ -13,9 +13,9 @@ stylegan_layer=11
 corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=1
-min_shift_magnitude=0.25
-max_shift_magnitude=0.50
+num_latent_support_dipoles=128
+min_shift_magnitude=0.1
+max_shift_magnitude=0.2
 
 # ==== Corpus Support Sets (CSS) ==== #
 linear=false
