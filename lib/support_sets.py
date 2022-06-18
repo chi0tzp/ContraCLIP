@@ -129,8 +129,18 @@ class SupportSets(nn.Module):
             ##                                          [ GAMMAS: (K, N) ]                                            ##
             ############################################################################################################
             # Define RBF loggammas
-            self.LOGGAMMA = nn.Parameter(data=self.loggamma * torch.ones(self.num_support_sets, 1))
+            # REVIEW: Original initialisation
+            # self.LOGGAMMA = nn.Parameter(data=self.loggamma * torch.ones(self.num_support_sets, 1))
 
+            # REVIEW: New initialisation
+            self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
+            LOGGAMMA = torch.zeros(self.num_support_sets, 1)
+            beta = 0.7
+            for k in range(self.num_support_sets):
+                g = -np.log(beta) / ((2 * self.radii[k]) ** 2)
+                LOGGAMMA[k] = torch.log(torch.Tensor([g]))
+            self.LOGGAMMA.data = LOGGAMMA.clone()
+    
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
         support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)

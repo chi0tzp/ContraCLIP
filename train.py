@@ -56,6 +56,9 @@ def main():
     """
     parser = argparse.ArgumentParser(description="WarpedGANSpace training script")
 
+    # === Experiment ID ============================================================================================== #
+    parser.add_argument('--exp-id', type=str, default='', help="set optional experiment ID")
+
     # === Pre-trained GAN Generator (G) ============================================================================== #
     parser.add_argument('--gan', type=str, choices=GENFORCE_MODELS.keys(), help='GAN generator model')
     parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W', 'W+'),

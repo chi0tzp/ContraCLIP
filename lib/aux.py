@@ -21,6 +21,8 @@ def create_exp_dir(args):
         ContraCLIP-<gan_type>(-{Z,W,W+})-K<num_latent_support_sets>-D<num_latent_support_dipoles>
             -eps<min_shift_magnitude>_<max_shift_magnitude>
             (-<nonlinear_beta-<beta>/linear/styleclip>)(-<contrastive_<temperature>/cossim>)-<max_iter>-<prompt>
+            (-<exp_id>)
+
         E.g.:
             ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
 
@@ -47,6 +49,7 @@ def create_exp_dir(args):
         exp_dir += "_{}".format(args.temperature)
     exp_dir += "-{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
+    exp_dir += "-{}".format(args.exp_id)
 
     # Create output directory (wip)
     wip_dir = osp.join("experiments", "wip", exp_dir)
