@@ -135,7 +135,7 @@ def main():
     parser.add_argument('--img-quality', type=int, default=50, help="set JPEG image quality")
 
     parser.add_argument('--strip', action='store_true', help="create traversal strip images")
-    parser.add_argument('--strip-number', type=int, default=5, help="set number of images per strip")
+    parser.add_argument('--strip-number', type=int, default=9, help="set number of images per strip")
     parser.add_argument('--strip-size', type=int, default=256, help="set strip height")
     parser.add_argument('--gif', action='store_true', help="create GIF traversals")
     parser.add_argument('--gif-size', type=int, default=256, help="set gif resolution")

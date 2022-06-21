@@ -93,11 +93,8 @@ class SupportSets(nn.Module):
             ############################################################################################################
             # Choose r_min and r_max based on the expected latent norm -- i.e., the expected norm of a latent code drawn
             # from the latent space (Z, W, or W+) for the given truncation parameter
-            # REVIEW:
-            # self.r_min = 2 * self.expected_latent_norm
-            # self.r_max = 5 * self.expected_latent_norm
-            self.r_min = 1
-            self.r_max = 4
+            self.r_min = 2 * self.expected_latent_norm
+            self.r_max = 5 * self.expected_latent_norm
 
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
             self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
