@@ -11,6 +11,13 @@
 ##                                                                                                                    ##
 ########################################################################################################################
 SEMANTIC_DIPOLES_CORPORA = {
+    'dev':
+        [
+            ["a picture of a female.",
+             "a picture of a male."],
+            ["a picture of an old person.",
+             "a picture of a young person."]
+        ],
     'attributes':
         [
             ["a picture of a female.",
