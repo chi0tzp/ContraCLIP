@@ -25,13 +25,14 @@ def main():
                                        the tuple PROMPT_CORPUS[args.corpus] will define the number of the latent support
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
-        --beta                       : set 0.25 <= beta < 1.0 for fixing the gamma parameter of each semantic dipole
+        --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
+                                       (0.25 <= css_beta < 1.0)
         --styleclip                  : use StyleCLIP approach for calculating image-text similarity
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set
-        --gamma                      : set RBF latent gamma param (by default, gamma will be set to the inverse of the
-                                       latent space dimensionality)
+        --lss-beta                   : set beta parameter for initializing latent space RBFs' gamma parameters
+                                       (0.0 < lss_beta < 1.0)
         --lr                         : set learning rate for learning the latent support sets LSS (with Adam optimizer)
         --linear                     : use the vector connecting the poles of the dipole for calculating image-text
                                        similarity
@@ -70,17 +71,19 @@ def main():
     # === Corpus Support Sets (CSS) ================================================================================== #
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--beta', type=float, default=0.75,
-                        help="set 0.25 <= beta < 1.0 for fixing the gamma parameter of each semantic dipole")
+    parser.add_argument('--css-beta', type=float, default=0.5,
+                        help="set beta parameter for initializing CLIP space RBFs' gamma parameters "
+                             "(0.25 <= css_beta < 1.0)")
     parser.add_argument('--styleclip', action='store_true',
                         help="use StyleCLIP approach for calculating image-text similarity")
     parser.add_argument('--linear', action='store_true',
                         help="use the vector connecting the poles of the dipole for calculating image-text similarity")
 
     # === Latent Support Sets (LSS) ================================================================================== #
-    parser.add_argument('--num-latent-support-dipoles', type=int,
-                        help="number of latent support dipoles per support set")
-    parser.add_argument('--gamma', type=float, help="RBF initial latent gamma value")
+    parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
+    parser.add_argument('--lss-beta', type=float, default=0.1,
+                        help="set beta parameter for initializing latent space RBFs' gamma parameters "
+                             "(0.0 < css_beta < 1.0)")
     parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets LSS learning rate")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.25, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
@@ -155,8 +158,9 @@ def main():
     print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
+    print("  \\__Text RBF beta param              : {}".format(args.css_beta))
 
-    CSS = SupportSets(prompt_features=prompt_features, beta=args.beta)
+    CSS = SupportSets(prompt_features=prompt_features, css_beta=args.css_beta)
 
     # Count number of trainable parameters
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
@@ -166,7 +170,6 @@ def main():
     support_vectors_dim = G.dim_z
     if ('stylegan' in args.gan) and (args.stylegan_space == 'W+'):
         support_vectors_dim *= (args.stylegan_layer + 1)
-    gamma_init = 1.0 / support_vectors_dim if args.gamma is None else args.gamma
 
     # Get expected latent norm
     with open(osp.join('models', 'expected_latent_norms.json'), 'r') as f:
@@ -188,12 +191,12 @@ def main():
     print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
-    print("  \\__Latent RBF initial gamma         : {}".format(gamma_init))
+    print("  \\__Latent RBF beta param            : {}".format(args.lss_beta))
 
     LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
                       num_support_dipoles=args.num_latent_support_dipoles,
                       support_vectors_dim=support_vectors_dim,
-                      gamma=gamma_init,
+                      lss_beta=args.lss_beta,
                       expected_latent_norm=expected_latent_norm)
 
     # Count number of trainable parameters

@@ -5,7 +5,7 @@ import numpy as np
 
 class SupportSets(nn.Module):
     def __init__(self, prompt_features=None, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None,
-                 gamma=None, beta=0.5, expected_latent_norm=20.0):
+                 lss_beta=0.1, css_beta=0.5, expected_latent_norm=20.0):
         """SupportSets class constructor.
 
         Args:
@@ -13,8 +13,10 @@ class SupportSets(nn.Module):
             num_support_sets (int)         : number of support sets (each one defining a warping function)
             num_support_dipoles (int)      : number of support dipoles per support set (per warping function)
             support_vectors_dim (int)      : dimensionality of support vectors (latent space dimensionality, z_dim)
-            gamma (float)                  : RBF gamma parameter (by default set to the inverse of the latent space
-                                             dimensionality)
+            lss_beta (float)               : set beta parameter for initializing latent space RBFs' gamma parameters
+                                             (0.0 < lss_beta < 1.0)
+            css_beta (float)               : set beta parameter for fixing CLIP space RBFs' gamma parameters
+                                             (0.25 <= css_beta < 1.0)
             expected_latent_norm (float)   : expected norm of the latent codes for the given GAN type
         """
         super(SupportSets, self).__init__()
@@ -30,6 +32,7 @@ class SupportSets(nn.Module):
             self.num_support_sets = self.prompt_features.shape[0]
             self.num_support_dipoles = 1
             self.support_vectors_dim = self.prompt_features.shape[2]
+            self.css_beta = css_beta
 
             ############################################################################################################
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
@@ -58,9 +61,8 @@ class SupportSets(nn.Module):
             # Define RBF loggammas
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1), requires_grad=False)
             LOGGAMMA = torch.zeros(self.num_support_sets, 1)
-            self.beta = beta
             for k in range(self.num_support_sets):
-                g = -np.log(self.beta) / (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
+                g = -np.log(self.css_beta) / (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
                 LOGGAMMA[k] = torch.log(torch.Tensor([g]))
             self.LOGGAMMA.data = LOGGAMMA.clone()
 
@@ -83,11 +85,7 @@ class SupportSets(nn.Module):
                 raise ValueError("Latent support vector dimensionality not defined.")
             else:
                 self.support_vectors_dim = support_vectors_dim
-            if gamma is None:
-                self.gamma = 1.0 / self.support_vectors_dim
-            else:
-                self.gamma = gamma
-            self.loggamma = torch.log(torch.scalar_tensor(self.gamma))
+            self.lss_beta = lss_beta
             self.expected_latent_norm = expected_latent_norm
 
             ############################################################################################################
@@ -133,15 +131,10 @@ class SupportSets(nn.Module):
             ##                                          [ GAMMAS: (K, N) ]                                            ##
             ############################################################################################################
             # Define RBF loggammas
-            # REVIEW: Original initialisation
-            # self.LOGGAMMA = nn.Parameter(data=self.loggamma * torch.ones(self.num_support_sets, 1))
-
-            # REVIEW: New initialisation
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
             LOGGAMMA = torch.zeros(self.num_support_sets, 1)
-            beta = 0.1
             for k in range(self.num_support_sets):
-                g = -np.log(beta) / ((2 * self.radii[k]) ** 2)
+                g = -np.log(self.lss_beta) / ((2 * self.radii[k]) ** 2)
                 LOGGAMMA[k] = torch.log(torch.Tensor([g]))
             self.LOGGAMMA.data = LOGGAMMA.clone()
 
