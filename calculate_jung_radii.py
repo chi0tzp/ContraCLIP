@@ -1,3 +1,4 @@
+import sys
 import argparse
 import numpy as np
 import os.path as osp
@@ -6,6 +7,7 @@ from lib import GENFORCE_MODELS
 from models.load_generator import load_generator
 from sklearn import linear_model
 from collections import defaultdict
+from tqdm import tqdm
 import json
 
 
@@ -14,12 +16,12 @@ def make_dict():
 
 
 def main():
-    """A script for calculating the mean norm of the latent codes of a GAN (i.e., in Z/W/W+ space), given a truncation
-    parameter. When applicable, a linear model is trained in order to predict the expected norm of the latent codes,
-    given a truncation parameter.
+    """A script for calculating the radii of minimal enclosing balls for the latent space of a (i.e., in Z/W/W+ space),
+    given a truncation parameter. When applicable, a linear model is trained in order to predict the radii of the latent
+    codes, given a truncation parameter.
 
     The parameters of the linear model (i.e., the weight w and the bias b) are stored for each GAN type and each latent
-    space in a json file (i.e., models/expected_latent_norms.json) as a dictionary with the following format:
+    space in a json file (i.e., models/jung_radii.json) as a dictionary with the following format:
         {
             ...
             <gan>:
@@ -34,7 +36,7 @@ def main():
                 },
             ...
         }
-    so as, given a truncation parameter t, the expected norm is given as `w * t + b`.
+    so as, given a truncation parameter t, the radius is given as `w * t + b`.
 
     Options:
         -v, --verbose    : set verbose mode on
@@ -42,7 +44,7 @@ def main():
         --cuda           : use CUDA (default)
         --no-cuda        : do not use CUDA
     """
-    parser = argparse.ArgumentParser(description="Fit a linear model for the expected norm of GAN's latent code given "
+    parser = argparse.ArgumentParser(description="Fit a linear model for the jung radius of GAN's latent code given "
                                                  "a truncation parameter")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode on")
     parser.add_argument('--num-samples', type=int, default=1000, help="set number of latent codes to sample")
@@ -67,11 +69,10 @@ def main():
     else:
         torch.set_default_tensor_type('torch.FloatTensor')
 
-    # Build expected latent norms dictionary and populate it
+    # Build jung radii dictionary and populate it
     nested_dict = lambda: defaultdict(nested_dict)
-    expected_latent_norm_dict = nested_dict()
+    jung_radii_dict = nested_dict()
     for gan in GENFORCE_MODELS.keys():
-        print("#. GAN type: ***{}***".format(gan))
         ################################################################################################################
         ##                                                                                                            ##
         ##                                               [ StyleGANs ]                                                ##
@@ -105,9 +106,9 @@ def main():
 
             # Calculate expected latent norm
             if args.verbose:
-                print("  \\__Calculate expected latent norm...")
-            expected_latent_norm = zs.norm(dim=1, keepdim=True).mean().cpu().detach().item()
-            expected_latent_norm_dict[gan]['Z'] = (0.0, expected_latent_norm)
+                print("  \\__Calculate Jung radius...")
+            jung_radius = torch.cdist(zs, zs).max() * np.sqrt(G.dim_z / (2 * (G.dim_z + 1)))
+            jung_radii_dict[gan]['Z'] = (0.0, jung_radius.cpu().detach().item())
 
             ############################################################################################################
             ##                                                                                                        ##
@@ -139,29 +140,30 @@ def main():
 
             # Calculate expected latent norm and fit a linear model for each version of the W+ space
             if args.verbose:
-                print("  \\__Calculate expected latent norm and fit linear models...")
+                print("  \\__Calculate Jung radii and fit linear models...")
             data_per_layer = dict()
             tmp = []
-            for truncation in np.linspace(0.1, 1.0, 100):
-                tmp.append([truncation,
-                            G.get_w(zs, truncation=truncation)[:, 0, :].norm(
-                                dim=1, keepdim=True).mean().cpu().detach().item()])
+            for truncation in tqdm(np.linspace(0.1, 1.0, 100), desc="  \\__Calculate radii (W space): "):
+                ws = G.get_w(zs, truncation=truncation)[:, 0, :]
+                jung_radius = torch.cdist(ws, ws).max() * np.sqrt(ws.shape[1] / (2 * (ws.shape[1] + 1)))
+                tmp.append([truncation, jung_radius.cpu().detach().item()])
             data_per_layer.update({0: tmp})
 
-            for ll in range(1, stylegan_num_layers):
+            for ll in tqdm(range(1, stylegan_num_layers), desc="  \\__Calculate radii (W+ space): "):
                 tmp = []
-                for truncation in np.linspace(0.1, 1.0, 10):
+                for truncation in np.linspace(0.1, 1.0, 100):
                     ws_plus = G.get_w(zs, truncation=truncation)[:, :ll + 1, :]
-                    tmp.append([truncation,
-                                ws_plus.reshape(ws_plus.shape[0], -1).norm(
-                                    dim=1, keepdim=True).mean().cpu().detach().item()])
+                    ws_plus = ws_plus.reshape(ws_plus.shape[0], -1)
+                    jung_radius = torch.cdist(ws_plus, ws_plus).max() * \
+                        np.sqrt(ws_plus.shape[1] / (2 * (ws_plus.shape[1] + 1)))
+                    tmp.append([truncation, jung_radius.cpu().detach().item()])
                 data_per_layer.update({ll: tmp})
 
-            for ll, v in data_per_layer.items():
+            for ll, v in tqdm(data_per_layer.items(), desc="  \\__Fit linear models"):
                 v = np.array(v)
                 lm = linear_model.LinearRegression()
                 lm.fit(v[:, 0].reshape(-1, 1), v[:, 1].reshape(-1, 1))
-                expected_latent_norm_dict[gan]['W'][ll] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
+                jung_radii_dict[gan]['W'][ll] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -191,13 +193,18 @@ def main():
 
             # Calculate expected latent norm
             if args.verbose:
-                print("  \\__Calculate expected latent norm...")
-            expected_latent_norm = zs.norm(dim=1, keepdim=True).mean().cpu().detach().item()
-            expected_latent_norm_dict[gan]['Z'] = (0.0, expected_latent_norm)
+                print("  \\__Calculate Jung radius...")
+            jung_radius = torch.cdist(zs, zs).max() * np.sqrt(G.dim_z / (2 * (G.dim_z + 1)))
+
+            print("jung_radius")
+            print(jung_radius)
+            print(type(jung_radius))
+
+            jung_radii_dict[gan]['Z'] = (0.0, jung_radius.cpu().detach().item())
 
     # Save expected latent norms dictionary
-    with open(osp.join('models', 'expected_latent_norms.json'), 'w') as fp:
-        json.dump(expected_latent_norm_dict, fp)
+    with open(osp.join('models', 'jung_radii.json'), 'w') as fp:
+        json.dump(jung_radii_dict, fp)
 
 
 if __name__ == '__main__':
