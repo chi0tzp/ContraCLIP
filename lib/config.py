@@ -100,6 +100,15 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a picture of a happy person.",
              "a picture of an angry person."],
         ],
+    'ash2':
+        [
+            ["a picture of a person with a very happy face.",
+             "a picture of a person with a very sad face."],
+            ["a picture of a person with a very angry face.",
+             "a picture of a person with a very sad face."],
+            ["a picture of a person with a very happy face.",
+             "a picture of a person with a very angry face."],
+        ],
     'complex':
         [
             ["a picture of a man with a beard crying.",
