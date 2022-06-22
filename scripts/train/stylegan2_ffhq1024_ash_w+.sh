@@ -10,10 +10,10 @@ stylegan_layer=11
 corpus="ash"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=128
+num_latent_support_dipoles=512
 min_shift_magnitude=0.1
 max_shift_magnitude=0.2
-lss_beta=0.01
+lss_beta=0.5
 
 # ==== Corpus Support Sets (CSS) ==== #
 linear=false

@@ -84,7 +84,7 @@ def main():
     parser.add_argument('--lss-beta', type=float, default=0.1,
                         help="set beta parameter for initializing latent space RBFs' gamma parameters "
                              "(0.0 < css_beta < 1.0)")
-    parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets LSS learning rate")
+    parser.add_argument('--lr', type=float, default=1e-4, help="latent support sets LSS learning rate")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.25, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
 
@@ -171,33 +171,34 @@ def main():
     if ('stylegan' in args.gan) and (args.stylegan_space == 'W+'):
         support_vectors_dim *= (args.stylegan_layer + 1)
 
-    # Get expected latent norm
-    with open(osp.join('models', 'expected_latent_norms.json'), 'r') as f:
-        expected_latent_norms_dict = json.load(f)
+    # Get Jung radii
+    with open(osp.join('models', 'jung_radii.json'), 'r') as f:
+        jung_radii_dict = json.load(f)
 
     if 'stylegan' in args.gan:
         if 'W+' in args.stylegan_space:
-            lm = expected_latent_norms_dict[args.gan]['W']['{}'.format(args.stylegan_layer)]
+            lm = jung_radii_dict[args.gan]['W']['{}'.format(args.stylegan_layer)]
         elif 'W' in args.stylegan_space:
-            lm = expected_latent_norms_dict[args.gan]['W']['0']
+            lm = jung_radii_dict[args.gan]['W']['0']
         else:
-            lm = expected_latent_norms_dict[args.gan]['Z']
-        expected_latent_norm = lm[0] * args.truncation + lm[1]
+            lm = jung_radii_dict[args.gan]['Z']
+        jung_radius = lm[0] * args.truncation + lm[1]
     else:
-        expected_latent_norm = expected_latent_norms_dict[args.gan]['Z'][1]
+        jung_radius = jung_radii_dict[args.gan]['Z'][1]
 
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
     print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
-    print("  \\__Latent RBF beta param            : {}".format(args.lss_beta))
+    print("  \\__Latent RBF beta param (lss-beta) : {}".format(args.lss_beta))
+    print("  \\__Jung radius                      : {}".format(jung_radius))
 
     LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
                       num_support_dipoles=args.num_latent_support_dipoles,
                       support_vectors_dim=support_vectors_dim,
                       lss_beta=args.lss_beta,
-                      expected_latent_norm=expected_latent_norm)
+                      jung_radius=jung_radius)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)

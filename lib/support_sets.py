@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import nn
 import numpy as np
@@ -5,7 +6,7 @@ import numpy as np
 
 class SupportSets(nn.Module):
     def __init__(self, prompt_features=None, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None,
-                 lss_beta=0.1, css_beta=0.5, expected_latent_norm=20.0):
+                 lss_beta=0.5, css_beta=0.5, jung_radius=None):
         """SupportSets class constructor.
 
         Args:
@@ -14,10 +15,10 @@ class SupportSets(nn.Module):
             num_support_dipoles (int)      : number of support dipoles per support set (per warping function)
             support_vectors_dim (int)      : dimensionality of support vectors (latent space dimensionality, z_dim)
             lss_beta (float)               : set beta parameter for initializing latent space RBFs' gamma parameters
-                                             (0.0 < lss_beta < 1.0)
+                                             (0.25 < lss_beta < 1.0)
             css_beta (float)               : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                              (0.25 <= css_beta < 1.0)
-            expected_latent_norm (float)   : expected norm of the latent codes for the given GAN type
+            jung_radius (float)            : TODO: add comment
         """
         super(SupportSets, self).__init__()
         self.prompt_features = prompt_features
@@ -85,17 +86,18 @@ class SupportSets(nn.Module):
                 raise ValueError("Latent support vector dimensionality not defined.")
             else:
                 self.support_vectors_dim = support_vectors_dim
+            if jung_radius is None:
+                raise ValueError("Jung radius not given.")
+            else:
+                self.jung_radius = jung_radius
             self.lss_beta = lss_beta
-            self.expected_latent_norm = expected_latent_norm
 
             ############################################################################################################
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
             ############################################################################################################
-            # Choose r_min and r_max based on the expected latent norm -- i.e., the expected norm of a latent code drawn
-            # from the latent space (Z, W, or W+) for the given truncation parameter
-            self.r_min = 2 * self.expected_latent_norm
-            self.r_max = 5 * self.expected_latent_norm
-
+            # Choose r_min and r_max based on ... TODO: +++
+            self.r_min = 0.90 * self.jung_radius
+            self.r_max = 1.25 * self.jung_radius
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
             self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
                                                              2 * self.num_support_dipoles * self.support_vectors_dim))
@@ -122,18 +124,31 @@ class SupportSets(nn.Module):
                 a = []
                 for _ in range(self.num_support_dipoles):
                     a.extend([1, -1])
-                self.ALPHAS[k] = torch.Tensor(a)
+                self.ALPHAS.data[k] = torch.Tensor(a)
 
             ############################################################################################################
             ##                                          [ GAMMAS: (K, N) ]                                            ##
             ############################################################################################################
             # Define RBF loggammas
+            # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
+            # LOGGAMMA = torch.zeros(self.num_support_sets, 1)
+            # for k in range(self.num_support_sets):
+            #     g = -np.log(self.lss_beta) / ((2 * self.radii[k]) ** 2)
+            #     LOGGAMMA[k] = torch.log(torch.Tensor([g]))
+            # self.LOGGAMMA.data = LOGGAMMA.clone()
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
-            LOGGAMMA = torch.zeros(self.num_support_sets, 1)
             for k in range(self.num_support_sets):
                 g = -np.log(self.lss_beta) / ((2 * self.radii[k]) ** 2)
-                LOGGAMMA[k] = torch.log(torch.Tensor([g]))
-            self.LOGGAMMA.data = LOGGAMMA.clone()
+                self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
+
+            # print("self.ALPHAS")
+            # print(self.ALPHAS.shape)
+            # print(self.ALPHAS)
+            # print("self.LOGGAMMA")
+            # print(self.LOGGAMMA.shape)
+            # print(self.LOGGAMMA)
+            # print(torch.exp(self.LOGGAMMA))
+            # sys.exit()
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
