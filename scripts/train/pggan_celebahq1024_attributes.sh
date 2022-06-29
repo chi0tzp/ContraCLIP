@@ -11,13 +11,14 @@ corpus="attributes"
 num_latent_support_dipoles=128
 min_shift_magnitude=0.1
 max_shift_magnitude=0.2
+lss_beta=0.5
 
 # ==== Corpus Support Sets (CSS) ==== #
 linear=false
 styleclip_like=false
 loss="contrastive"
-temperature=1.0
-beta=0.75
+temperature=0.07
+css_beta=0.5
 
 # ============ Training ============= #
 batch_size=8
@@ -39,9 +40,10 @@ fi
 python train.py --gan=${gan} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
+                --lss-beta=${lss_beta} \
                 --loss=${loss} \
                 --temperature=${temperature} \
-                --beta=${beta} \
+                --css-beta=${css_beta} \
                 ${linear_text} \
                 ${styleclip} \
                 --min-shift-magnitude=${min_shift_magnitude} \
