@@ -1,3 +1,4 @@
+import sys
 import argparse
 import os.path as osp
 import json
@@ -26,6 +27,7 @@ def main():
                                        the tuple PROMPT_CORPUS[args.corpus] will define the number of the latent support
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
+                                       TODO: read corpus from input file
         --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                        (0.25 <= css_beta < 1.0)
         --styleclip                  : use StyleCLIP approach for calculating image-text similarity
@@ -84,14 +86,15 @@ def main():
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
     parser.add_argument('--lss-beta', type=float, default=0.1,
                         help="set beta parameter for initializing latent space RBFs' gamma parameters "
-                             "(0.0 < css_beta < 1.0)")
+                             "(0.25 < css_beta < 1.0)")
     parser.add_argument('--lr', type=float, default=1e-4, help="latent support sets LSS learning rate")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.25, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
 
     # === Training =================================================================================================== #
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
-    parser.add_argument('--batch-size', type=int, default=32, help="training batch size")
+    parser.add_argument('--batch-size', type=int, required=True, help="training batch size -- this should be less than "
+                                                                      "or equal to the size of the given corpus")
     parser.add_argument('--loss', type=str, default='cossim', choices=('cossim', 'contrastive'),
                         help="loss function")
     parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
@@ -107,6 +110,14 @@ def main():
     # Parse given arguments
     args = parser.parse_args()
 
+    # Check given batch size
+    if args.batch_size > len(SEMANTIC_DIPOLES_CORPORA[args.corpus]):
+        print("*** WARNING ***: Given batch size ({}) is greater than the size of the given corpus ({})\n"
+              "                 Set batch size to {}".format(
+                args.batch_size, len(SEMANTIC_DIPOLES_CORPORA[args.corpus]),
+                len(SEMANTIC_DIPOLES_CORPORA[args.corpus])))
+        args.batch_size = len(SEMANTIC_DIPOLES_CORPORA[args.corpus])
+    
     # Check StyleGAN's layer
     if 'stylegan' in args.gan:
         if (args.stylegan_layer < 0) or (args.stylegan_layer > STYLEGAN_LAYERS[args.gan]-1):
