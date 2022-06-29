@@ -58,7 +58,7 @@ def main():
         --no-cuda                        : do NOT use CUDA during training
         ================================================================================================================
     """
-    parser = argparse.ArgumentParser(description="WarpedGANSpace training script")
+    parser = argparse.ArgumentParser(description="ContraCLIP training script")
 
     # === Experiment ID ============================================================================================== #
     parser.add_argument('--exp-id', type=str, default='', help="set optional experiment ID")
