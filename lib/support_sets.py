@@ -1,4 +1,3 @@
-import sys
 import torch
 from torch import nn
 import numpy as np
@@ -18,7 +17,7 @@ class SupportSets(nn.Module):
                                              (0.25 < lss_beta < 1.0)
             css_beta (float)               : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                              (0.25 <= css_beta < 1.0)
-            jung_radius (float)            : TODO: add comment
+            jung_radius (float)            : radius of the minimum enclosing ball of a set of a set of 10K latent codes
         """
         super(SupportSets, self).__init__()
         self.prompt_features = prompt_features
@@ -61,11 +60,9 @@ class SupportSets(nn.Module):
             ############################################################################################################
             # Define RBF loggammas
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1), requires_grad=False)
-            LOGGAMMA = torch.zeros(self.num_support_sets, 1)
             for k in range(self.num_support_sets):
                 g = -np.log(self.css_beta) / (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
-                LOGGAMMA[k] = torch.log(torch.Tensor([g]))
-            self.LOGGAMMA.data = LOGGAMMA.clone()
+                self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -95,7 +92,7 @@ class SupportSets(nn.Module):
             ############################################################################################################
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
             ############################################################################################################
-            # Choose r_min and r_max based on ... TODO: +++
+            # Choose r_min and r_max based on the Jung radius
             self.r_min = 0.90 * self.jung_radius
             self.r_max = 1.25 * self.jung_radius
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
@@ -130,25 +127,10 @@ class SupportSets(nn.Module):
             ##                                          [ GAMMAS: (K, N) ]                                            ##
             ############################################################################################################
             # Define RBF loggammas
-            # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
-            # LOGGAMMA = torch.zeros(self.num_support_sets, 1)
-            # for k in range(self.num_support_sets):
-            #     g = -np.log(self.lss_beta) / ((2 * self.radii[k]) ** 2)
-            #     LOGGAMMA[k] = torch.log(torch.Tensor([g]))
-            # self.LOGGAMMA.data = LOGGAMMA.clone()
             self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
             for k in range(self.num_support_sets):
                 g = -np.log(self.lss_beta) / ((2 * self.radii[k]) ** 2)
                 self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
-
-            # print("self.ALPHAS")
-            # print(self.ALPHAS.shape)
-            # print(self.ALPHAS)
-            # print("self.LOGGAMMA")
-            # print(self.LOGGAMMA.shape)
-            # print(self.LOGGAMMA)
-            # print(torch.exp(self.LOGGAMMA))
-            # sys.exit()
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch

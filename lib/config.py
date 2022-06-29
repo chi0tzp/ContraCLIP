@@ -11,13 +11,6 @@
 ##                                                                                                                    ##
 ########################################################################################################################
 SEMANTIC_DIPOLES_CORPORA = {
-    'dev':
-        [
-            ["a picture of a female.",
-             "a picture of a male."],
-            ["a picture of an old person.",
-             "a picture of a young person."]
-        ],
     'attributes':
         [
             ["a picture of a female.",
@@ -84,39 +77,12 @@ SEMANTIC_DIPOLES_CORPORA = {
         ],
     'expressions3':
         [
-            ["a picture of a person with happy face.",
-             "a picture of a person with angry face."],
-            ["a picture of a person with surprised face.",
-             "a picture of a person with angry face."],
-            ["a picture of a person with surprised face.",
-             "a picture of a person with happy face."],
-        ],
-    'ash':
-        [
-            ["a picture of a happy person.",
-             "a picture of a sad person."],
-            ["a picture of an angry person.",
-             "a picture of a sad person."],
-            ["a picture of a happy person.",
-             "a picture of an angry person."],
-        ],
-    'ash2':
-        [
-            ["a picture of a person with a very happy face.",
-             "a picture of a person with a very sad face."],
-            ["a picture of a person with a very angry face.",
-             "a picture of a person with a very sad face."],
-            ["a picture of a person with a very happy face.",
-             "a picture of a person with a very angry face."],
-        ],
-    'ash3':
-        [
-            ["a picture of a very angry face.",
-             "a picture of an angry face."],
-            ["a picture of a very sad face.",
-             "a picture of a sad face."],
-            ["a picture of a very happy face.",
-             "a picture of a happy face."],
+            ["a picture of a person with a happy face.",
+             "a picture of a person with an angry face."],
+            ["a picture of a person with a surprised face.",
+             "a picture of a person with an angry face."],
+            ["a picture of a person with a surprised face.",
+             "a picture of a person with a happy face."],
         ],
     'complex':
         [

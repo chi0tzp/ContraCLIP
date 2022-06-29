@@ -15,6 +15,7 @@ def main():
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
         --stylegan-space             : set StyleGAN's latent space (Z, W, W+) to look for interpretable paths
+                                       TODO: add style space S
         --stylegan-layer             : choose up to which StyleGAN's layer to use for learning latent paths
                                        E.g., if --stylegan-layer=11, then interpretable paths will be learnt in a
                                        (12 * 512)-dimensional latent space.
