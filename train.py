@@ -117,7 +117,7 @@ def main():
                 args.batch_size, len(SEMANTIC_DIPOLES_CORPORA[args.corpus]),
                 len(SEMANTIC_DIPOLES_CORPORA[args.corpus])))
         args.batch_size = len(SEMANTIC_DIPOLES_CORPORA[args.corpus])
-    
+
     # Check StyleGAN's layer
     if 'stylegan' in args.gan:
         if (args.stylegan_layer < 0) or (args.stylegan_layer > STYLEGAN_LAYERS[args.gan]-1):
