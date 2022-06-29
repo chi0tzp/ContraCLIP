@@ -11,6 +11,10 @@ notebooks/
 figs/inkscape/
 models/pretrained/
 
+scripts/train/BACKUP/
+scripts/eval/BACKUP/
+scripts/compare/BACKUP/
+
 !experiments/
 experiments/*
 experiments/latent_codes/TMP/

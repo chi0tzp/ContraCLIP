@@ -8,7 +8,7 @@ gan="pggan_celebahq1024"
 corpus="attributes"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=128
+num_latent_support_dipoles=64
 min_shift_magnitude=0.1
 max_shift_magnitude=0.2
 lss_beta=0.5
