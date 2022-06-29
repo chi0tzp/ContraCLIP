@@ -4,8 +4,10 @@
 # =================================== #
 
 # ======== GAN Type / Corpus ======== #
-gan="pggan_celebahq1024"
-corpus="attributes"
+gan="stylegan2_afhqdog512"
+stylegan_space="W+"
+stylegan_layer=11
+corpus="dogs"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=64
@@ -21,7 +23,7 @@ temperature=0.07
 css_beta=0.5
 
 # ============ Training ============= #
-batch_size=9
+batch_size=4
 max_iter=20000
 # =================================== #
 
@@ -38,6 +40,9 @@ if $styleclip_like ; then
 fi
 
 python train.py --gan=${gan} \
+                --truncation=0.7 \
+                --stylegan-space=${stylegan_space} \
+                --stylegan-layer=${stylegan_layer} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --lss-beta=${lss_beta} \
