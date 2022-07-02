@@ -132,8 +132,8 @@ SEMANTIC_DIPOLES_CORPORA = {
 ##                                          [ Pre-trained ContraCLIP models ]                                         ##
 ##                                                                                                                    ##
 ########################################################################################################################
-ContraCLIP_models = ('https://www.dropbox.com/s/b8msg3k6zkr0978/contraclip_models.tar?dl=1',
-                     '5813e2e6b9bb44cf3e9c59b33b575fd906a50ee1d2a0a2be61b23798537de883')
+ContraCLIP_models = ('https://www.dropbox.com/s/bootpdxhnp9z6ce/contraclip_models.tar?dl=1',
+                     '0941c96d311700ef881bed38350d6d0cc38151255a34db94a5f9400758398a7f')
 
 ########################################################################################################################
 ##                                                                                                                    ##
