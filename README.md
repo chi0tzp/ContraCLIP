@@ -93,19 +93,19 @@ as well as, a directory `experiments/complete/` (if not already created by the u
 
 ```
 .experiments/complete/
-├── ContraCLIP_pggan_celebahq1024-Z-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
-├── ContraCLIP_stylegan2_afhqcat512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
-├── ContraCLIP_stylegan2_afhqcat512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
-├── ContraCLIP_stylegan2_afhqdog512-W+-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
-├── ContraCLIP_stylegan2_afhqdog512-W-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
-├── ContraCLIP_stylegan2_car512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
-├── ContraCLIP_stylegan2_car512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
-├── ContraCLIP_stylegan2_ffhq1024-W+-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
-├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
-├── ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
-└── ContraCLIP_stylegan2_ffhq1024-W-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
+├── ContraCLIP_pggan_celebahq1024-Z-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-attributes
+├── ContraCLIP_pggan_celebahq1024-Z-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-attributes
+├── ContraCLIP_stylegan2_afhqcat512-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-cats
+├── ContraCLIP_stylegan2_afhqdog512-W+-K4-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-dogs
+├── ContraCLIP_stylegan2_car512-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-cars
+├── ContraCLIP_stylegan2_ffhq1024-W+-K21-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-expressions
+├── ContraCLIP_stylegan2_ffhq1024-W+-K21-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-expressions
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-complex
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-expressions3
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-complex
+├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-expressions3
+├── ContraCLIP_stylegan2_ffhq1024-W+-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-attributes
+└── ContraCLIP_stylegan2_ffhq1024-W+-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-attributes
 ```
 
 We note that the pre-trained detectors (such as ArcFace) are used only during the evaluation stage (**no ID preserving loss is imposed during training**).

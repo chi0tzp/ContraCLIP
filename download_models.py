@@ -60,23 +60,10 @@ def main():
     -- Facial attributes detector [8] for 5 CelebA [9] attributes
     -- ContraCLIP [10] pre-trained models:
         StyleGAN2@FFHQ
-            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
-            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
-            ContraCLIP_stylegan2_ffhq1024-W+-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
-            ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-complex
-            ContraCLIP_stylegan2_ffhq1024-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
-            ContraCLIP_stylegan2_ffhq1024-W-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
         ProgGAN@CelebA-HQ:
-            ContraCLIP_pggan_celebahq1024-Z-K8-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-attributes
         StyleGAN2@AFHQ-Cats
-            ContraCLIP_stylegan2_afhqcat512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
-            ContraCLIP_stylegan2_afhqcat512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cats
         StyleGAN2@AFHQ-Dogs
-            ContraCLIP_stylegan2_afhqdog512-W+-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
-            ContraCLIP_stylegan2_afhqdog512-W-K4-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-dogs
         StyleGAN2@AFHQ-Cars
-            ContraCLIP_stylegan2_car512-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
-            ContraCLIP_stylegan2_car512-W-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-cars
 
     References:
          [1] https://genforce.github.io/
