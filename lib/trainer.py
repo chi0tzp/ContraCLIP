@@ -371,8 +371,7 @@ class Trainer(object):
 
             # Add ID preserving ArcFace loss
             if self.params.id:
-                id_loss = torch.mean(1 - id_comp(img_shifted.div(255.0).mul(2.0).add(-1.0),
-                                                 img.div(255.0).mul(2.0).add(-1.0)))
+                id_loss = torch.mean(1 - id_comp(img_shifted, img))
                 loss += self.params.lambda_id * id_loss
 
             # Back-propagate!
