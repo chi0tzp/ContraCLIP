@@ -22,7 +22,7 @@ loss="cossim"
 temperature=0.07
 css_beta=0.5
 id=true
-lambda_id=1
+lambda_id=100
 
 # ============ Training ============= #
 batch_size=3
