@@ -5,6 +5,7 @@ from .config import GENFORCE, GENFORCE_MODELS, STYLEGAN_LAYERS
 from .config import SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES
 from .config import ContraCLIP_models
 from .support_sets import SupportSets
+from .arcface import IDComparator
 from .trainer import Trainer
 from .data import PathImages
 from .evaluation.sfd.sfd_detector import SFDDetector

@@ -20,7 +20,9 @@ def create_exp_dir(args):
     Experiment's directory name format:
         ContraCLIP-<gan_type>(-{Z,W,W+})-K<num_latent_support_sets>-D<num_latent_support_dipoles>-css_beta_<css_beta>
             -eps<min_shift_magnitude>_<max_shift_magnitude>
-            (-<nonlinear_css_beta-<css_beta>/linear/styleclip>)(-<contrastive_<temperature>/cossim>)-<max_iter>-<prompt>
+            (-<nonlinear_css_beta-<css_beta>/linear/styleclip>)(-<contrastive_<temperature>/cossim>)
+            (-id_<lambda_id>)
+            -<max_iter>-<prompt>
 
         E.g.:
             ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
@@ -43,10 +45,11 @@ def create_exp_dir(args):
         exp_dir += "-linear"
     else:
         exp_dir += "-nonlinear_css_beta_{}".format(args.css_beta)
-
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
+    if args.id:
+        exp_dir += "-id_{}".format(args.lambda_id)
     exp_dir += "-{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
 
@@ -82,10 +85,11 @@ class PromptFeatures:
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': []}
+        self.stat_tracker = {'loss': [], 'id_loss': []}
 
-    def update(self, loss):
+    def update(self, loss, id_loss):
         self.stat_tracker['loss'].append(float(loss))
+        self.stat_tracker['id_loss'].append(float(id_loss))
 
     def get_means(self):
         stat_means = dict()

@@ -129,21 +129,27 @@ class Trainer(object):
             print()
         print("         ===================================================================")
         print("      \\__Loss           : {:.08f}".format(stats['loss']))
+        if self.params.id:
+            print("      \\__ID Loss        : {:.08f}".format(stats['id_loss']))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
-        update_stdout(8)
+        if self.params.id:
+            update_stdout(9)
+        else:
+            update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model):
-        """GANxPlainer training function.
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_comp):
+        """ContraCLIP training function.
 
         Args:
             generator           : non-trainable (pre-trained) GAN generator
             latent_support_sets : trainable LSS model -- interpretable latent paths model
             corpus_support_sets : non-trainable CSS model -- non-linear paths in the CLIP space
             clip_model          : non-trainable (pre-trained) CLIP model
+            id_comp             : non-trainable (pre-trained) ArcFace ID comparator
 
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
@@ -160,11 +166,14 @@ class Trainer(object):
         if self.use_cuda:
             generator.cuda().eval()
             clip_model.cuda().eval()
-            corpus_support_sets.cuda()
+            id_comp.cuda().eval()
+            corpus_support_sets.cuda().eval()
             latent_support_sets.cuda().train()
         else:
             generator.eval()
             clip_model.eval()
+            id_comp.eval()
+            corpus_support_sets.eval()
             latent_support_sets.train()
 
         # Set latent support sets (LSS) optimizer
@@ -209,6 +218,7 @@ class Trainer(object):
 
             # Set gradients to zero
             generator.zero_grad()
+            id_comp.zero_grad()
             latent_support_sets.zero_grad()
             clip_model.zero_grad()
 
@@ -359,6 +369,11 @@ class Trainer(object):
                     loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
                                                  txt_batch=local_text_directions)
 
+            # Add ID preserving ArcFace loss
+            if self.params.id:
+                id_loss = torch.mean(1 - id_comp(img_shifted, img))
+                loss += self.params.lambda_id * id_loss
+
             # Back-propagate!
             loss.backward()
 
@@ -369,7 +384,7 @@ class Trainer(object):
             clip.model.convert_weights(clip_model)
 
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item())
+            self.stat_tracker.update(loss=loss.item(), id_loss=id_loss.item() if self.params.id else 0.0)
 
             # Get time of completion of current iteration
             iter_t = time.time()
