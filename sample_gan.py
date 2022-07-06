@@ -32,14 +32,12 @@ def main():
     with the corresponding latent codes, will be stored under `experiments/latent_codes/<gan>/`.
 
     Options:
-        -v, --verbose    : set verbose mode on
-        --gan            : set GAN generator (see GENFORCE_MODELS in lib/config.py)
-        --stylegan-space : set StyleGAN latent space (Z, W, W+) -- sampling is always done in Z space but in case this
-                           is set in W/W+-space, all latent codes will be stored
-        --truncation     : set W-space truncation parameter. If set, W-space codes will be truncated
-        --num-samples    : set the number of latent codes to sample for generating images
-        --cuda           : use CUDA (default)
-        --no-cuda        : do not use CUDA
+        -v, --verbose : set verbose mode on
+        --gan         : set GAN generator (see GENFORCE_MODELS in lib/config.py)
+        --truncation  : set W-space truncation parameter. If set, W-space codes will be truncated
+        --num-samples : set the number of latent codes to sample for generating images
+        --cuda        : use CUDA (default)
+        --no-cuda     : do not use CUDA
     """
     parser = argparse.ArgumentParser(description="Sample a pre-trained GAN latent space and generate images")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode on")
