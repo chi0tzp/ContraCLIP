@@ -68,13 +68,10 @@ def main():
 
     # CUDA
     use_cuda = False
-    multi_gpu = False
     if torch.cuda.is_available():
         if args.cuda:
             use_cuda = True
             torch.set_default_tensor_type('torch.cuda.FloatTensor')
-            if torch.cuda.device_count() > 1:
-                multi_gpu = True
         else:
             print("*** WARNING ***: It looks like you have a CUDA device, but aren't using CUDA.\n"
                   "                 Run with --cuda for optimal training speed.")
@@ -115,10 +112,6 @@ def main():
             if use_cuda:
                 G = G.cuda()
 
-            # Parallelize GAN generator model into multiple GPUs if available
-            if multi_gpu:
-                G = DataParallelPassthrough(G)
-
             # Latent codes sampling
             if args.verbose:
                 print("  \\__Sample {} {}-dimensional latent codes...".format(args.num_samples, G.dim_z))
@@ -150,10 +143,6 @@ def main():
             # Upload GAN generator model to GPU
             if use_cuda:
                 G = G.cuda()
-
-            # Parallelize GAN generator model into multiple GPUs if available
-            if multi_gpu:
-                G = DataParallelPassthrough(G)
 
             # Latent codes sampling
             if args.verbose:
@@ -211,10 +200,6 @@ def main():
             # Upload GAN generator model to GPU
             if use_cuda:
                 G = G.cuda()
-
-            # Parallelize GAN generator model into multiple GPUs if available
-            if multi_gpu:
-                G = DataParallelPassthrough(G)
 
             # Latent codes sampling
             if args.verbose:
@@ -276,10 +261,6 @@ def main():
             # Upload GAN generator model to GPU
             if use_cuda:
                 G = G.cuda()
-
-            # Parallelize GAN generator model into multiple GPUs if available
-            if multi_gpu:
-                G = DataParallelPassthrough(G)
 
             # Latent codes sampling
             if args.verbose:
