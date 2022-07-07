@@ -2,7 +2,6 @@ import argparse
 import numpy as np
 import os.path as osp
 import torch
-import torch.nn as nn
 from lib import GENFORCE_MODELS, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
 from models.load_generator import load_generator
 from sklearn import linear_model
@@ -13,14 +12,6 @@ import json
 
 def make_dict():
     return defaultdict(make_dict)
-
-
-class DataParallelPassthrough(nn.DataParallel):
-    def __getattr__(self, name):
-        try:
-            return super(DataParallelPassthrough, self).__getattr__(name)
-        except AttributeError:
-            return getattr(self.module, name)
 
 
 def main():
@@ -48,16 +39,21 @@ def main():
     so as, given a truncation parameter t, the radius is given as `w * t + b`.
 
     Options:
-        -v, --verbose    : set verbose mode on
-        --num-samples    : set the number of latent codes to sample for generating images
-        --cuda           : use CUDA (default)
-        --no-cuda        : do not use CUDA
+        -v, --verbose       : set verbose mode on
+        --num-samples       : set the number of latent codes to sample for generating images
+        --batch-size        : set batch size for generating style codes (in the case of StyleGAN2 on S-space)
+        --truncation-values : set number of truncation values for fitting the linear model
+        --cuda              : use CUDA (default)
+        --no-cuda           : do not use CUDA
     """
     parser = argparse.ArgumentParser(description="Fit a linear model for the jung radius of GAN's latent code given "
                                                  "a truncation parameter")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode on")
     parser.add_argument('--num-samples', type=int, default=5000, help="set number of latent codes to sample")
-    parser.add_argument('--batch-size', type=int, default=10, help="set batch size TODO: +++")
+    parser.add_argument('--batch-size', type=int, default=10,
+                        help="set batch size for generating style codes (in the case of StyleGAN2 on S-space)")
+    parser.add_argument('--truncation-values', type=int, default=10,
+                        help="set number of truncation values for fitting the linear model")
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")
     parser.add_argument('--no-cuda', dest='cuda', action='store_false', help="do NOT use CUDA during training")
     parser.set_defaults(cuda=True)
@@ -87,7 +83,7 @@ def main():
         cnt += 1
 
         if args.verbose:
-            print("#. [{}/{}] GAN type: {}".format(cnt, len(GENFORCE_MODELS.keys()), gan))
+            print("#. *** [{}/{}] GAN type: {} ***".format(cnt, len(GENFORCE_MODELS.keys()), gan))
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -96,9 +92,7 @@ def main():
         ################################################################################################################
         if 'stylegan' in gan:
             ############################################################################################################
-            ##                                                                                                        ##
             ##                                         [ StyleGAN @ Z-space ]                                         ##
-            ##                                                                                                        ##
             ############################################################################################################
             # Build GAN generator model and load with pre-trained weights
             if args.verbose:
@@ -114,7 +108,7 @@ def main():
 
             # Latent codes sampling
             if args.verbose:
-                print("  \\__Sample {} {}-dimensional latent codes...".format(args.num_samples, G.dim_z))
+                print("  \\__Sample {} {}-dimensional Z-space latent codes...".format(args.num_samples, G.dim_z))
             zs = torch.randn(args.num_samples, G.dim_z)
 
             if use_cuda:
@@ -127,9 +121,7 @@ def main():
             jung_radii_dict[gan]['Z'] = (0.0, jung_radius.cpu().detach().item())
 
             ############################################################################################################
-            ##                                                                                                        ##
             ##                                      [ StyleGAN @ W/W+-spaces ]                                        ##
-            ##                                                                                                        ##
             ############################################################################################################
 
             # Build GAN generator model and load with pre-trained weights
@@ -146,7 +138,7 @@ def main():
 
             # Latent codes sampling
             if args.verbose:
-                print("  \\__Sample {} {}-dimensional latent codes...".format(args.num_samples, G.dim_z))
+                print("  \\__Sample {} {}-dimensional Z-space latent codes...".format(args.num_samples, G.dim_z))
             zs = torch.randn(args.num_samples, G.dim_z)
 
             if use_cuda:
@@ -157,10 +149,11 @@ def main():
 
             # Calculate expected latent norm and fit a linear model for each version of the W+ space
             if args.verbose:
-                print("  \\__Calculate Jung radii and fit linear models...")
+                print("  \\__Calculate Jung radii and fit linear models in W/W+-spaces...")
             data_per_layer = dict()
             tmp = []
-            for truncation in tqdm(np.linspace(0.1, 1.0, 20), desc="  \\__Calculate radii (W-space): "):
+            for truncation in tqdm(np.linspace(0.1, 1.0, args.truncation_values),
+                                   desc="  \\__Calculate radii (W-space): "):
                 with torch.no_grad():
                     ws = G.get_w(zs, truncation=truncation)[:, 0, :]
                 jung_radius = torch.cdist(ws, ws).max() * np.sqrt(ws.shape[1] / (2 * (ws.shape[1] + 1)))
@@ -169,7 +162,7 @@ def main():
 
             for ll in tqdm(range(1, stylegan_num_layers), desc="  \\__Calculate radii (W+ space): "):
                 tmp = []
-                for truncation in np.linspace(0.1, 1.0, 20):
+                for truncation in np.linspace(0.1, 1.0, args.truncation_values):
                     with torch.no_grad():
                         ws_plus = G.get_w(zs, truncation=truncation)[:, :ll + 1, :]
                     ws_plus = ws_plus.reshape(ws_plus.shape[0], -1)
@@ -185,9 +178,7 @@ def main():
                 jung_radii_dict[gan]['W'][ll] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
 
             ############################################################################################################
-            ##                                                                                                        ##
             ##                                        [ StyleGAN @ S-space ]                                          ##
-            ##                                                                                                        ##
             ############################################################################################################
             # Build GAN generator model and load with pre-trained weights
             if args.verbose:
@@ -203,7 +194,7 @@ def main():
 
             # Latent codes sampling
             if args.verbose:
-                print("  \\__Sample {} {}-dimensional latent codes...".format(args.num_samples, G.dim_z))
+                print("  \\__Sample {} {}-dimensional Z-space latent codes...".format(args.num_samples, G.dim_z))
             zs = torch.randn(args.num_samples, G.dim_z)
 
             if use_cuda:
@@ -211,10 +202,11 @@ def main():
 
             # Calculate expected latent norm and fit a linear model for each version of the W+ space
             if args.verbose:
-                print("  \\__Calculate Jung radii and fit linear models...")
+                print("  \\__Calculate Jung radii and fit linear model in S-space...")
 
             data = []
-            for truncation in tqdm(np.linspace(0.1, 1.0, 20), desc="  \\__Calculate radii (S-space): "):
+            for truncation in tqdm(np.linspace(0.1, 1.0, args.truncation_values),
+                                   desc="  \\__Calculate radii (S-space): "):
                 with torch.no_grad():
                     wp = G.get_w(zs, truncation=truncation)
 
@@ -264,7 +256,7 @@ def main():
 
             # Latent codes sampling
             if args.verbose:
-                print("  \\__Sample {} {}-dimensional latent codes...".format(args.num_samples, G.dim_z))
+                print("  \\__Sample {} {}-dimensional Z-space latent codes...".format(args.num_samples, G.dim_z))
             zs = torch.randn(args.num_samples, G.dim_z)
 
             if use_cuda:
