@@ -138,15 +138,18 @@ def main():
             #     else:
             #         manipulated_styles_dict.update({k: styles_dict[k]})
             #
-            # img_s_manipulated = G(manipulated_styles_dict).cpu()
-            # tensor2image(img_s_manipulated, adaptive=True).save(osp.join(latent_code_dir, 'image_s_manipulated.jpg'),
-            #                                                     "JPEG", quality=95, optimize=True, progressive=True)
+            # with torch.no_grad():
+            #     img_s_manipulated = G(manipulated_styles_dict)
+            # tensor2image(img_s_manipulated.cpu(), adaptive=True).save(
+            #     osp.join(latent_code_dir, 'image_s_manipulated.jpg'),
+            #     "JPEG", quality=95, optimize=True, progressive=True)
             # REVIEW ==================================
 
             # Generate image
-            img_s = G(styles_dict).cpu()
-            tensor2image(img_s, adaptive=True).save(osp.join(latent_code_dir, 'image_s.jpg'),
-                                                    "JPEG", quality=95, optimize=True, progressive=True)
+            with torch.no_grad():
+                img_s = G(styles_dict)
+            tensor2image(img_s.cpu(), adaptive=True).save(osp.join(latent_code_dir, 'image_s.jpg'),
+                                                          "JPEG", quality=95, optimize=True, progressive=True)
             # Save latent codes in Z/W/W+/S spaces
             torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
             torch.save(w.cpu(), osp.join(latent_code_dir, 'latent_code_w.pt'))
@@ -154,9 +157,10 @@ def main():
             torch.save(styles_dict, osp.join(latent_code_dir, 'latent_code_s.pt'))
         else:
             # Generate image
-            img_z = G(z).cpu()
-            tensor2image(img_z, adaptive=True).save(osp.join(latent_code_dir, 'image_z.jpg'),
-                                                    "JPEG", quality=95, optimize=True, progressive=True)
+            with torch.no_grad():
+                img_z = G(z)
+            tensor2image(img_z.cpu(), adaptive=True).save(osp.join(latent_code_dir, 'image_z.jpg'),
+                                                          "JPEG", quality=95, optimize=True, progressive=True)
             # Save latent code in Z-space
             torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
 
