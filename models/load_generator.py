@@ -15,8 +15,9 @@ def load_generator(model_name, latent_is_w=False, latent_is_s=False, verbose=Fal
     model_config = MODEL_ZOO[model_name].copy()
     url = model_config.pop('url')
     # TODO: assert at most one of `latent_is_w` or `latent_is_s` is set
-    model_config.update({'latent_is_w': latent_is_w})
-    model_config.update({'latent_is_s': latent_is_s})
+    if 'stylegan' in model_name:
+        model_config.update({'latent_is_w': latent_is_w})
+        model_config.update({'latent_is_s': latent_is_s})
 
     # Build generator
     generator = build_generator(**model_config)
