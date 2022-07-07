@@ -5,7 +5,7 @@ import json
 import torch
 import clip
 from lib import *
-from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA
+from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
 from models.load_generator import load_generator
 
 
@@ -15,8 +15,7 @@ def main():
     Options:
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
-        --stylegan-space             : set StyleGAN's latent space (Z, W, W+) to look for interpretable paths
-                                       TODO: add style space S
+        --stylegan-space             : set StyleGAN's latent space (Z, W, W+, S) to look for interpretable paths
         --stylegan-layer             : choose up to which StyleGAN's layer to use for learning latent paths
                                        E.g., if --stylegan-layer=11, then interpretable paths will be learnt in a
                                        (12 * 512)-dimensional latent space.
@@ -27,7 +26,7 @@ def main():
                                        the tuple PROMPT_CORPUS[args.corpus] will define the number of the latent support
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
-                                       TODO: read corpus from input file
+                                       TODO: read corpus from input file?
         --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                        (0.25 <= css_beta < 1.0)
         --styleclip                  : use StyleCLIP approach for calculating image-text similarity
@@ -60,12 +59,9 @@ def main():
     """
     parser = argparse.ArgumentParser(description="ContraCLIP training script")
 
-    # === Experiment ID ============================================================================================== #
-    parser.add_argument('--exp-id', type=str, default='', help="set optional experiment ID")
-
     # === Pre-trained GAN Generator (G) ============================================================================== #
     parser.add_argument('--gan', type=str, choices=GENFORCE_MODELS.keys(), help='GAN generator model')
-    parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W', 'W+'),
+    parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W', 'W+', 'S'),
                         help="StyleGAN's latent space")
     parser.add_argument('--stylegan-layer', type=int, default=11, choices=range(18),
                         help="choose up to which StyleGAN's layer to use for learning latent paths")
@@ -149,6 +145,7 @@ def main():
     print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[args.gan][0]))
     G = load_generator(model_name=args.gan,
                        latent_is_w=('stylegan' in args.gan) and ('W' in args.stylegan_space),
+                       latent_is_s=('stylegan' in args.gan) and (args.stylegan_space == 'S'),
                        verbose=True).eval()
 
     # Upload GAN generator model to GPU
@@ -174,24 +171,25 @@ def main():
 
     CSS = SupportSets(prompt_features=prompt_features, css_beta=args.css_beta)
 
-    # Count number of trainable parameters
-    CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
-    print("  \\__Trainable parameters: {:,}".format(CSS_trainable_parameters))
-
     # Set support vector dimensionality and initial gamma param
     support_vectors_dim = G.dim_z
-    if ('stylegan' in args.gan) and (args.stylegan_space == 'W+'):
-        support_vectors_dim *= (args.stylegan_layer + 1)
+    if 'stylegan' in args.gan:
+        if args.stylegan_space == 'W+':
+            support_vectors_dim *= (args.stylegan_layer + 1)
+        elif args.stylegan_space == 'S':
+            support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()))
 
     # Get Jung radii
     with open(osp.join('models', 'jung_radii.json'), 'r') as f:
         jung_radii_dict = json.load(f)
 
     if 'stylegan' in args.gan:
-        if 'W+' in args.stylegan_space:
+        if args.stylegan_space == 'W+':
             lm = jung_radii_dict[args.gan]['W']['{}'.format(args.stylegan_layer)]
-        elif 'W' in args.stylegan_space:
+        elif args.stylegan_space == 'W':
             lm = jung_radii_dict[args.gan]['W']['0']
+        elif args.stylegan_space == 'S':
+            lm = jung_radii_dict[args.gan]['S']
         else:
             lm = jung_radii_dict[args.gan]['Z']
         jung_radius = lm[0] * args.truncation + lm[1]
@@ -204,7 +202,7 @@ def main():
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Latent RBF beta param (lss-beta) : {}".format(args.lss_beta))
-    print("  \\__Jung radius                      : {}".format(jung_radius))
+    print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
 
     LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
                       num_support_dipoles=args.num_latent_support_dipoles,
@@ -214,8 +212,8 @@ def main():
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
-    print("  \\__Trainable parameters: {:,}".format(LSS_trainable_parameters))
-    
+    print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
+
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)

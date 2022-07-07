@@ -12,7 +12,7 @@ import numpy as np
 import time
 import shutil
 from .aux import TrainingStatTracker, update_progress, update_stdout, sec2dhms
-from .config import SEMANTIC_DIPOLES_CORPORA, STYLEGAN_LAYERS
+from .config import SEMANTIC_DIPOLES_CORPORA, STYLEGAN_LAYERS, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
 
 
 class DataParallelPassthrough(nn.DataParallel):
@@ -69,18 +69,22 @@ class Trainer(object):
                                                                            (0.26862954, 0.26130258, 0.27577711))])
 
     def contrastive_loss(self, img_batch, txt_batch):
-        n_img, d_img = img_batch.shape
-        n_txt, d_txt = txt_batch.shape
+        """
 
-        # TODO: assert that dimensions are the same?
+        Args:
+            img_batch:
+            txt_batch:
 
+        Returns:
+
+        """
         # Normalise image and text batches
         img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
         txt_batch_l2 = F.normalize(txt_batch, p=2, dim=-1)
 
         # Calculate inner product similarity matrix
         similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
-        labels = torch.arange(n_img)
+        labels = torch.arange(img_batch.shape[0])
 
         return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
 
@@ -224,6 +228,8 @@ class Trainer(object):
                     latent_code = generator.get_w(z, truncation=self.params.truncation)[:, 0, :]
                 elif self.params.stylegan_space == 'W+':
                     latent_code = generator.get_w(z, truncation=self.params.truncation)
+                elif self.params.stylegan_space == 'S':
+                    latent_code = generator.get_s(generator.get_w(z, truncation=self.params.truncation))
             img = generator(latent_code)
 
             # Sample indices of shift vectors (`self.params.batch_size` out of `self.params.num_support_sets`)
@@ -270,26 +276,64 @@ class Trainer(object):
                     prompt_sign[i] = -1.0
             prompt_mask = prompt_mask.unsqueeze(1)
 
+            # TODO: Amend comment below
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
             # self.params.stylegan_space, i.e., in Z-, W-, or W+-space. In the Z-/W-space the dimensionality of the
             # latent space is 512. In the case of W+-space, the dimensionality is 512 * (self.params.stylegan_layer + 1)
-            if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
-                shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(
-                    support_sets_mask, latent_code[:, :self.params.stylegan_layer + 1, :].reshape(latent_code.shape[0],
-                                                                                                  -1))
+            if 'stylegan' in self.params.gan:
+                if self.params.stylegan_space == 'W+':
+                    shift = latent_support_sets(
+                        support_sets_mask,
+                        latent_code[:, :self.params.stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
+                    shift = target_shift_magnitudes.reshape(-1, 1) * shift
+
+                elif self.params.stylegan_space == 'S':
+                    shift = latent_support_sets(
+                        support_sets_mask,
+                        torch.cat([latent_code[k]
+                                   for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].keys()], dim=1))
+                    shift = target_shift_magnitudes.reshape(-1, 1) * shift
             else:
                 shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask, latent_code)
 
             # Generate images the shifted latent codes
-            if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
-                latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
-                shift = F.pad(input=shift,
-                              pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
-                              mode='constant',
-                              value=0)
-                latent_code_shifted = latent_code_reshaped + shift
-                latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
-                img_shifted = generator(latent_code_shifted_reshaped)
+            # if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
+            #     latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
+            #     shift = F.pad(input=shift,
+            #                   pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
+            #                   mode='constant',
+            #                   value=0)
+            #     latent_code_shifted = latent_code_reshaped + shift
+            #     latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
+            #     img_shifted = generator(latent_code_shifted_reshaped)
+            # else:
+            #     img_shifted = generator(latent_code + shift)
+            if 'stylegan' in self.params.gan:
+                if self.params.stylegan_space == 'W+':
+                    latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
+                    shift = F.pad(input=shift,
+                                  pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
+                                  mode='constant',
+                                  value=0)
+                    latent_code_shifted = latent_code_reshaped + shift
+                    latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
+                    img_shifted = generator(latent_code_shifted_reshaped)
+                elif self.params.stylegan_space == 'S':
+                    latent_code_target_styles_vector = torch.cat(
+                        [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].keys()], dim=1)
+                    latent_code_target_styles_vector = latent_code_target_styles_vector + shift
+                    latent_code_target_styles_tuple = torch.split(
+                        tensor=latent_code_target_styles_vector,
+                        split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].values()), dim=1)
+                    latent_code_shifted = dict()
+                    cnt = 0
+                    for k, v in latent_code.items():
+                        if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan]:
+                            latent_code_shifted.update({k: latent_code_target_styles_tuple[cnt]})
+                            cnt += 1
+                        else:
+                            latent_code_shifted.update({k: latent_code[k]})
+                    img_shifted = generator(latent_code_shifted)
             else:
                 img_shifted = generator(latent_code + shift)
 
