@@ -1,15 +1,12 @@
-# python3.7
 """Contains the implementation of generator described in StyleGAN2.
 
-Compared to that of StyleGAN, the generator in StyleGAN2 mainly introduces style
-demodulation, adds skip connections, increases model size, and disables
-progressive growth. This script ONLY supports config F in the original paper.
+Compared to that of StyleGAN, the generator in StyleGAN2 mainly introduces style demodulation, adds skip connections,
+increases model size, and disables progressive growth. This script ONLY supports config F in the original paper.
 
 Paper: https://arxiv.org/pdf/1912.04958.pdf
 
 Official TensorFlow implementation: https://github.com/NVlabs/stylegan2
 """
-
 import numpy as np
 
 import torch
@@ -36,43 +33,32 @@ _WSCALE_GAIN = 1.0
 class StyleGAN2Generator(nn.Module):
     """Defines the generator network in StyleGAN2.
 
-    NOTE: The synthesized images are with `RGB` channel order and pixel range
-    [-1, 1].
+    NOTE: The synthesized images are with `RGB` channel order and pixel range [-1, 1].
 
     Settings for the mapping network:
 
     (1) z_space_dim: Dimension of the input latent space, Z. (default: 512)
     (2) w_space_dim: Dimension of the outout latent space, W. (default: 512)
-    (3) label_size: Size of the additional label for conditional generation.
-        (default: 0)
+    (3) label_size: Size of the additional label for conditional generation. (default: 0)
     (4）mapping_layers: Number of layers of the mapping network. (default: 8)
-    (5) mapping_fmaps: Number of hidden channels of the mapping network.
-        (default: 512)
-    (6) mapping_lr_mul: Learning rate multiplier for the mapping network.
-        (default: 0.01)
+    (5) mapping_fmaps: Number of hidden channels of the mapping network. (default: 512)
+    (6) mapping_lr_mul: Learning rate multiplier for the mapping network. (default: 0.01)
     (7) repeat_w: Repeat w-code for different layers.
 
     Settings for the synthesis network:
 
     (1) resolution: The resolution of the output image.
     (2) image_channels: Number of channels of the output image. (default: 3)
-    (3) final_tanh: Whether to use `tanh` to control the final pixel range.
-        (default: False)
-    (4) const_input: Whether to use a constant in the first convolutional layer.
-        (default: True)
-    (5) architecture: Type of architecture. Support `origin`, `skip`, and
-        `resnet`. (default: `resnet`)
-    (6) fused_modulate: Whether to fuse `style_modulate` and `conv2d` together.
-        (default: True)
+    (3) final_tanh: Whether to use `tanh` to control the final pixel range. (default: False)
+    (4) const_input: Whether to use a constant in the first convolutional layer. (default: True)
+    (5) architecture: Type of architecture. Support `origin`, `skip`, and `resnet`. (default: `resnet`)
+    (6) fused_modulate: Whether to fuse `style_modulate` and `conv2d` together. (default: True)
     (7) demodulate: Whether to perform style demodulation. (default: True)
     (8) use_wscale: Whether to use weight scaling. (default: True)
-    (9) noise_type: Type of noise added to the convolutional results at each
-        layer. (default: `spatial`)
-    (10) fmaps_base: Factor to control number of feature maps for each layer.
-        (default: 32 << 10)
+    (9) noise_type: Type of noise added to the convolutional results at each layer. (default: `spatial`)
+    (10) fmaps_base: Factor to control number of feature maps for each layer. (default: 32 << 10)
     (11) fmaps_max: Maximum number of feature maps in each layer. (default: 512)
     """
-
     def __init__(self,
                  resolution,
                  z_space_dim=512,
@@ -92,7 +78,8 @@ class StyleGAN2Generator(nn.Module):
                  noise_type='spatial',
                  fmaps_base=32 << 10,
                  fmaps_max=512,
-                 latent_is_w=False):
+                 latent_is_w=False,
+                 latent_is_s=False):
         """Initializes with basic settings.
 
         Raises:
@@ -129,7 +116,7 @@ class StyleGAN2Generator(nn.Module):
         self.fmaps_base = fmaps_base
         self.fmaps_max = fmaps_max
         self.latent_is_w = latent_is_w
-
+        self.latent_is_s = latent_is_s
         self.num_layers = int(np.log2(self.resolution // self.init_res * 2)) * 2
 
         if self.repeat_w:
@@ -173,18 +160,14 @@ class StyleGAN2Generator(nn.Module):
     def set_space_of_latent(self, space_of_latent='w'):
         """Sets the space to which the latent code belong.
 
-        This function is particually used for choosing how to inject the latent
-        code into the convolutional layers. The original generator will take a
-        W-Space code and apply it for style modulation after an affine
-        transformation. But, sometimes, it may need to directly feed an already
-        affine-transformed code into the convolutional layer, e.g., when
-        training an encoder for GAN inversion. We term the transformed space as
-        Style Space (or Y-Space). This function is designed to tell the
-        convolutional layers how to use the input code.
+        This function is particually used for choosing how to inject the latent code into the convolutional layers.
+        The original generator will take a W-Space code and apply it for style modulation after an affine
+        transformation. But, sometimes, it may need to directly feed an already affine-transformed code into the
+        convolutional layer, e.g., when training an encoder for GAN inversion. We term the transformed space as
+        Style Space (or Y-Space). This function is designed to tell the convolutional layers how to use the input code.
 
         Args:
-            space_of_latent: The space to which the latent code belong. Case
-                insensitive. (default: 'w')
+            space_of_latent: The space to which the latent code belong. Case insensitive. (default: 'w')
         """
         for module in self.modules():
             if isinstance(module, ModulateConvBlock):
@@ -199,30 +182,63 @@ class StyleGAN2Generator(nn.Module):
                 trunc_layers=None,
                 randomize_noise=False,
                 **_unused_kwargs):
-        # TODO: add comment
-        if self.latent_is_w:
+
+        ################################################################################################################
+        ##                                                                                                            ##
+        ##                                [ Given latent codes are in style space S ]                                 ##
+        ##                                                                                                            ##
+        ################################################################################################################
+        if self.latent_is_s:
+            styles_dict = z
+            self.set_space_of_latent(space_of_latent='y')
+            synthesis_results = self.synthesis(styles_dict=styles_dict, randomize_noise=randomize_noise)
+
+        ################################################################################################################
+        ##                                                                                                            ##
+        ##                                 [ Given latent codes are in W/W+-space ]                                   ##
+        ##                                                                                                            ##
+        ################################################################################################################
+        elif self.latent_is_w:
             w = z
+            if self.training and w_moving_decay < 1:
+                batch_w_avg = all_gather(w).mean(dim=0)
+                self.truncation.w_avg.copy_(self.truncation.w_avg * w_moving_decay +
+                                            batch_w_avg * (1 - w_moving_decay))
+            if self.training and style_mixing_prob > 0:
+                new_z = torch.randn_like(z)
+                new_w = self.mapping(new_z, label)['w']
+                if np.random.uniform() < style_mixing_prob:
+                    mixing_cutoff = np.random.randint(1, self.num_layers)
+                    w = self.truncation(w)
+                    new_w = self.truncation(new_w)
+                    w[:, :mixing_cutoff] = new_w[:, :mixing_cutoff]
+            wp = self.truncation(w, trunc_psi, trunc_layers)
+
+            synthesis_results = self.synthesis(wp=wp, randomize_noise=randomize_noise)
+
+        ################################################################################################################
+        ##                                                                                                            ##
+        ##                                   [ Given latent codes are in Z-space ]                                    ##
+        ##                                                                                                            ##
+        ################################################################################################################
         else:
             mapping_results = self.mapping(z, label)
             w = mapping_results['w']
+            if self.training and w_moving_decay < 1:
+                batch_w_avg = all_gather(w).mean(dim=0)
+                self.truncation.w_avg.copy_(self.truncation.w_avg * w_moving_decay +
+                                            batch_w_avg * (1 - w_moving_decay))
+            if self.training and style_mixing_prob > 0:
+                new_z = torch.randn_like(z)
+                new_w = self.mapping(new_z, label)['w']
+                if np.random.uniform() < style_mixing_prob:
+                    mixing_cutoff = np.random.randint(1, self.num_layers)
+                    w = self.truncation(w)
+                    new_w = self.truncation(new_w)
+                    w[:, :mixing_cutoff] = new_w[:, :mixing_cutoff]
+            wp = self.truncation(w, trunc_psi, trunc_layers)
 
-        if self.training and w_moving_decay < 1:
-            batch_w_avg = all_gather(w).mean(dim=0)
-            self.truncation.w_avg.copy_(
-                self.truncation.w_avg * w_moving_decay +
-                batch_w_avg * (1 - w_moving_decay))
-
-        if self.training and style_mixing_prob > 0:
-            new_z = torch.randn_like(z)
-            new_w = self.mapping(new_z, label)['w']
-            if np.random.uniform() < style_mixing_prob:
-                mixing_cutoff = np.random.randint(1, self.num_layers)
-                w = self.truncation(w)
-                new_w = self.truncation(new_w)
-                w[:, :mixing_cutoff] = new_w[:, :mixing_cutoff]
-
-        wp = self.truncation(w, trunc_psi, trunc_layers)
-        synthesis_results = self.synthesis(wp, randomize_noise)
+            synthesis_results = self.synthesis(wp=wp, randomize_noise=randomize_noise)
 
         return synthesis_results['image']
 
@@ -231,6 +247,10 @@ class StyleGAN2Generator(nn.Module):
         w = mapping_results['w']
         wp = self.truncation(w, truncation, trunc_layers)
         return wp
+
+    def get_s(self, wp, randomize_noise=None):
+        self.set_space_of_latent(space_of_latent='w')
+        return self.synthesis.get_s(wp, randomize_noise)
 
 
 class MappingModule(nn.Module):
@@ -530,47 +550,97 @@ class SynthesisModule(nn.Module):
         """Gets number of feature maps according to current resolution."""
         return min(self.fmaps_base // res, self.fmaps_max)
 
-    def forward(self, wp, randomize_noise=False):
-        results = {'wp': wp}
-        x = self.early_layer(wp[:, 0])
+    def forward(self, wp=None, styles_dict=None, randomize_noise=False):
+
+        # Only one of wp and styles_dict can be None
+        if (styles_dict is not None) and (wp is not None):
+            # TODO: raise error!
+            pass
+
+        if styles_dict is not None:
+            results = {'styles_dict': styles_dict}
+            x = self.early_layer(styles_dict['style00'])
+        if wp is not None:
+            results = {'wp': wp}
+            x = self.early_layer(wp[:, 0])
+
         if self.architecture == 'origin':
             for layer_idx in range(self.num_layers - 1):
-                x, style = self.__getattr__(f'layer{layer_idx}')(
-                    x, wp[:, layer_idx], randomize_noise)
+                x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
                 results[f'style{layer_idx:02d}'] = style
-            image, style = self.__getattr__(f'output{layer_idx // 2}')(
-                x, wp[:, layer_idx + 1])
+            image, style = self.__getattr__(f'output{layer_idx // 2}')(x, wp[:, layer_idx + 1])
             results[f'output_style{layer_idx // 2}'] = style
+
         elif self.architecture == 'skip':
             for layer_idx in range(self.num_layers - 1):
-                x, style = self.__getattr__(f'layer{layer_idx}')(
-                    x, wp[:, layer_idx], randomize_noise)
+                if styles_dict is not None:
+                    x, style = self.__getattr__(f'layer{layer_idx}')(x, styles_dict[f'style{layer_idx:02d}'], randomize_noise)
+                if wp is not None:
+                    x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
                 results[f'style{layer_idx:02d}'] = style
+
                 if layer_idx % 2 == 0:
-                    temp, style = self.__getattr__(f'output{layer_idx // 2}')(
-                        x, wp[:, layer_idx + 1])
+                    if styles_dict is not None:
+                        temp, style = self.__getattr__(f'output{layer_idx // 2}')(x, styles_dict[f'output_style{layer_idx // 2}'])
+                    if wp is not None:
+                        temp, style = self.__getattr__(f'output{layer_idx // 2}')(x, wp[:, layer_idx + 1])
                     results[f'output_style{layer_idx // 2}'] = style
                     if layer_idx == 0:
                         image = temp
                     else:
                         image = temp + self.upsample(image)
+
         elif self.architecture == 'resnet':
             x, style = self.layer0(x)
             results[f'style00'] = style
             for layer_idx in range(1, self.num_layers - 1, 2):
                 residual = self.__getattr__(f'skip_layer{layer_idx // 2}')(x)
-                x, style = self.__getattr__(f'layer{layer_idx}')(
-                    x, wp[:, layer_idx], randomize_noise)
+                x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
                 results[f'style{layer_idx:02d}'] = style
-                x, style = self.__getattr__(f'layer{layer_idx + 1}')(
-                    x, wp[:, layer_idx + 1], randomize_noise)
+                x, style = self.__getattr__(f'layer{layer_idx + 1}')(x, wp[:, layer_idx + 1], randomize_noise)
                 results[f'style{layer_idx + 1:02d}'] = style
                 x = (x + residual) / np.sqrt(2.0)
-            image, style = self.__getattr__(f'output{layer_idx // 2 + 1}')(
-                x, wp[:, layer_idx + 2])
+            image, style = self.__getattr__(f'output{layer_idx // 2 + 1}')(x, wp[:, layer_idx + 2])
             results[f'output_style{layer_idx // 2}'] = style
         results['image'] = self.final_activate(image)
         return results
+
+    def get_s(self, wp, randomize_noise=False):
+        styles_dict = {}
+        x = self.early_layer(wp[:, 0])
+        if self.architecture == 'origin':
+            for layer_idx in range(self.num_layers - 1):
+                x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
+                styles_dict[f'style{layer_idx:02d}'] = style
+            image, style = self.__getattr__(f'output{layer_idx // 2}')(x, wp[:, layer_idx + 1])
+            styles_dict[f'output_style{layer_idx // 2}'] = style
+
+        elif self.architecture == 'skip':
+            for layer_idx in range(self.num_layers - 1):
+                x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
+                styles_dict[f'style{layer_idx:02d}'] = style
+                if layer_idx % 2 == 0:
+                    temp, style = self.__getattr__(f'output{layer_idx // 2}')(x, wp[:, layer_idx + 1])
+                    styles_dict[f'output_style{layer_idx // 2}'] = style
+                    if layer_idx == 0:
+                        image = temp
+                    else:
+                        image = temp + self.upsample(image)
+
+        elif self.architecture == 'resnet':
+            x, style = self.layer0(x)
+            styles_dict[f'style00'] = style
+            for layer_idx in range(1, self.num_layers - 1, 2):
+                residual = self.__getattr__(f'skip_layer{layer_idx // 2}')(x)
+                x, style = self.__getattr__(f'layer{layer_idx}')(x, wp[:, layer_idx], randomize_noise)
+                styles_dict[f'style{layer_idx:02d}'] = style
+                x, style = self.__getattr__(f'layer{layer_idx + 1}')(x, wp[:, layer_idx + 1], randomize_noise)
+                styles_dict[f'style{layer_idx + 1:02d}'] = style
+                x = (x + residual) / np.sqrt(2.0)
+            image, style = self.__getattr__(f'output{layer_idx // 2 + 1}')(x, wp[:, layer_idx + 2])
+            styles_dict[f'output_style{layer_idx // 2}'] = style
+
+        return styles_dict
 
 
 class PixelNormLayer(nn.Module):
@@ -904,13 +974,15 @@ class ModulateConvBlock(nn.Module):
     def forward_style(self, w):
         """Gets style code from the given input.
 
-        More specifically, if the input is from W-Space, it will be projected by
-        an affine transformation. If it is from the Style Space (Y-Space), no
-        operation is required.
+        More specifically, if the input is from W-Space, it will be projected by an affine transformation. If it is
+        from the Style Space (Y-Space), no operation is required.
 
-        NOTE: For codes from Y-Space, we use slicing to make sure the dimension
-        is correct, in case that the code is padded before fed into this layer.
+        NOTE: For codes from Y-Space, we use slicing to make sure the dimension is correct, in case that the code is
+        padded before fed into this layer.
         """
+
+        # print("**** self.space_of_latent: {}".format(self.space_of_latent))
+
         if self.space_of_latent == 'w':
             if w.ndim != 2 or w.shape[1] != self.w_space_dim:
                 raise ValueError(f'The input tensor should be with shape '
@@ -936,6 +1008,9 @@ class ModulateConvBlock(nn.Module):
 
         # Style modulation.
         style = self.forward_style(w)
+
+        # print("+++ style: {}".format(style.shape))
+
         _weight = weight.view(1, self.ksize, self.ksize, self.in_c, self.out_c)
         _weight = _weight * style.view(batch, 1, 1, self.in_c, 1)
 

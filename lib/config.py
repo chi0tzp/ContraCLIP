@@ -211,3 +211,96 @@ STYLEGAN_LAYERS = {
     'stylegan2_car512': 16,
     'stylegan2_church256': 14,
 }
+
+STYLEGAN2_STYLE_SPACE_TARGET_LAYERS = {
+    'stylegan2_ffhq1024':
+        {
+            'style00': 512,  # 'layer0'  : '4x4/Conv'
+            'style01': 512,  # 'layer1'  : '8x8/Conv0_up'
+            'style02': 512,  # 'layer2'  : '8x8/Conv1'
+            'style03': 512,  # 'layer3'  : '16x16/Conv0_up'
+            'style04': 512,  # 'layer4'  : '16x16/Conv1'
+            'style05': 512,  # 'layer5'  : '32x32/Conv0_up'
+            'style06': 512,  # 'layer6'  : '32x32/Conv1'
+            'style07': 512,  # 'layer7'  : '64x64/Conv0_up'
+            'style08': 512,  # 'layer8'  : '64x64/Conv1'
+            'style09': 512,  # 'layer9'  : '128x128/Conv0_up'
+            'style10': 256,  # 'layer10' : '128x128/Conv1'
+            'style11': 256,  # 'layer11' : '256x256/Conv0_up'
+            'style12': 128,  # 'layer12' : '256x256/Conv1'
+            'style13': 128,  # 'layer13' : '512x512/Conv0_up'
+            'style14': 64,   # 'layer14' : '512x512/Conv1'
+            'style15': 64,   # 'layer15' : '1024x1024/Conv0_up'
+            'style16': 32    # 'layer16' : '1024x1024/Conv1'
+        },
+    'stylegan2_afhqcat512':
+        {
+            'style00': 512,
+            'style01': 512,
+            'style02': 512,
+            'style03': 512,
+            'style04': 512,
+            'style05': 512,
+            'style06': 512,
+            'style07': 512,
+            'style08': 512,
+            'style09': 512,
+            'style10': 256,
+            'style11': 256,
+            'style12': 128,
+            'style13': 128,
+            'style14': 64,
+        },
+    'stylegan2_afhqdog512':
+        {
+            'style00': 512,
+            'style01': 512,
+            'style02': 512,
+            'style03': 512,
+            'style04': 512,
+            'style05': 512,
+            'style06': 512,
+            'style07': 512,
+            'style08': 512,
+            'style09': 512,
+            'style10': 256,
+            'style11': 256,
+            'style12': 128,
+            'style13': 128,
+            'style14': 64,
+        },
+    'stylegan2_car512':
+        {
+            'style00': 512,
+            'style01': 512,
+            'style02': 512,
+            'style03': 512,
+            'style04': 512,
+            'style05': 512,
+            'style06': 512,
+            'style07': 512,
+            'style08': 512,
+            'style09': 512,
+            'style10': 256,
+            'style11': 256,
+            'style12': 128,
+            'style13': 128,
+            'style14': 64,
+        },
+    'stylegan2_church256':
+        {
+            'style00': 512,
+            'style01': 512,
+            'style02': 512,
+            'style03': 512,
+            'style04': 512,
+            'style05': 512,
+            'style06': 512,
+            'style07': 512,
+            'style08': 512,
+            'style09': 512,
+            'style10': 256,
+            'style11': 256,
+            'style12': 128,
+        }
+}

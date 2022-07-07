@@ -81,7 +81,7 @@ def main():
         print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[args.gan][0]))
 
     G = load_generator(model_name=args.gan,
-                       latent_is_w='stylegan' in args.gan,
+                       latent_is_s='stylegan' in args.gan,
                        verbose=args.verbose).eval()
 
     # Upload GAN generator model to GPU
@@ -116,24 +116,49 @@ def main():
         os.makedirs(latent_code_dir, exist_ok=True)
 
         if 'stylegan' in args.gan:
-            # Get the w+ and w codes for the given z code, save them, and the generated image based on the w code
-            # Note that w+ has torch.Size([1, 512]) and w torch.Size([18, 512]) -- the latter is just a repetition of
-            # the w code for all 18 layers
-            w_plus = G.get_w(z, truncation=args.truncation)[0, :, :]
-            w = w_plus[0, :].unsqueeze(0)
+            # Get W/W+ latent codes from z code
+            wp = G.get_w(z, truncation=args.truncation)
+            w = wp[:, 0, :]
+            # Get S latent codes from wp codes
+            styles_dict = G.get_s(wp)
+
+            # REVIEW ==================================
+            # from lib import STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
+            # target_styles_vector = torch.cat([styles_dict[k]
+            #                                   for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].keys()], dim=1)
+            # target_styles_vector += 0.5 * torch.randn_like(target_styles_vector)
+            # target_styles_tuple = torch.split(tensor=target_styles_vector,
+            #                                   split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()), dim=1)
+            # manipulated_styles_dict = dict()
+            # cnt = 0
+            # for k, v in styles_dict.items():
+            #     if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan]:
+            #         manipulated_styles_dict.update({k: target_styles_tuple[cnt]})
+            #         cnt += 1
+            #     else:
+            #         manipulated_styles_dict.update({k: styles_dict[k]})
+            #
+            # img_s_manipulated = G(manipulated_styles_dict).cpu()
+            # tensor2image(img_s_manipulated, adaptive=True).save(osp.join(latent_code_dir, 'image_s_manipulated.jpg'),
+            #                                                     "JPEG", quality=95, optimize=True, progressive=True)
+            # REVIEW ==================================
+
+            # Generate image
+            img_s = G(styles_dict).cpu()
+            tensor2image(img_s, adaptive=True).save(osp.join(latent_code_dir, 'image_s.jpg'),
+                                                    "JPEG", quality=95, optimize=True, progressive=True)
+            # Save latent codes in Z/W/W+/S spaces
             torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
             torch.save(w.cpu(), osp.join(latent_code_dir, 'latent_code_w.pt'))
-            torch.save(w_plus.cpu(), osp.join(latent_code_dir, 'latent_code_w+.pt'))
-
-            img_w = G(w).cpu()
-            tensor2image(img_w, adaptive=True).save(osp.join(latent_code_dir, 'image_w.jpg'),
-                                                    "JPEG", quality=95, optimize=True, progressive=True)
+            torch.save(wp.cpu(), osp.join(latent_code_dir, 'latent_code_w+.pt'))
+            torch.save(styles_dict, osp.join(latent_code_dir, 'latent_code_s.pt'))
         else:
-            # Save latent code (Z-space), generate image for this code, and save the generated image
-            torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
+            # Generate image
             img_z = G(z).cpu()
             tensor2image(img_z, adaptive=True).save(osp.join(latent_code_dir, 'image_z.jpg'),
                                                     "JPEG", quality=95, optimize=True, progressive=True)
+            # Save latent code in Z-space
+            torch.save(z.cpu(), osp.join(latent_code_dir, 'latent_code_z.pt'))
 
     if args.verbose:
         update_stdout(1)

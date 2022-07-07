@@ -1,4 +1,3 @@
-import sys
 from models.genforce.models import MODEL_ZOO
 from models.genforce.models import build_generator
 import os
@@ -7,14 +6,17 @@ import subprocess
 import torch
 
 
-def load_generator(model_name, latent_is_w=False, verbose=False, CHECKPOINT_DIR='models/pretrained/genforce/'):
+def load_generator(model_name, latent_is_w=False, latent_is_s=False, verbose=False,
+                   CHECKPOINT_DIR='models/pretrained/genforce/'):
 
     if verbose:
         print("  \\__Building generator for model {}...".format(model_name), end="")
 
     model_config = MODEL_ZOO[model_name].copy()
-    url = model_config.pop('url')  # URL to download model if needed.
+    url = model_config.pop('url')
+    # TODO: assert at most one of `latent_is_w` or `latent_is_s` is set
     model_config.update({'latent_is_w': latent_is_w})
+    model_config.update({'latent_is_s': latent_is_s})
 
     # Build generator
     generator = build_generator(**model_config)
