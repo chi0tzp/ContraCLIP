@@ -84,10 +84,11 @@ class PromptFeatures:
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': []}
+        self.stat_tracker = {'loss': [], 'id_loss': []}
 
-    def update(self, loss):
+    def update(self, loss, id_loss):
         self.stat_tracker['loss'].append(float(loss))
+        self.stat_tracker['id_loss'].append(float(id_loss))
 
     def get_means(self):
         stat_means = dict()

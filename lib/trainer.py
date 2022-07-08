@@ -133,12 +133,17 @@ class Trainer(object):
             print()
         print("         ===================================================================")
         print("      \\__Loss           : {:.08f}".format(stats['loss']))
+        if self.params.id:
+            print("      \\__ID Loss        : {:.08f}".format(stats['id_loss']))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
-        update_stdout(8)
+        if self.params.id:
+            update_stdout(9)
+        else:
+            update_stdout(8)
 
     def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_comp=None):
         """GANxPlainer training function.
@@ -397,8 +402,8 @@ class Trainer(object):
 
             # Add ID preserving ArcFace loss
             if self.params.id:
-                id_loss = torch.mean(1 - id_comp(img_shifted, img))
-                loss += self.params.lambda_id * id_loss
+                id_loss = self.params.lambda_id * torch.mean(1 - id_comp(img_shifted, img))
+                loss += id_loss
 
             # Back-propagate!
             loss.backward()
@@ -410,7 +415,7 @@ class Trainer(object):
             clip.model.convert_weights(clip_model)
 
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item())
+            self.stat_tracker.update(loss=loss.item(), id_loss=id_loss.item() if self.params.id else 0.0)
 
             # Get time of completion of current iteration
             iter_t = time.time()
