@@ -124,6 +124,13 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a modern car.",
              "a photo of a car from the sixties."],
         ],
+    'dev':
+        [
+            ["a photo of a person with a happy face.",
+             "a photo of a person with an angry face."],
+            ["a photo of a person with a sad face.",
+             "a photo of a person with a disgusted face."],
+        ]
 }
 
 

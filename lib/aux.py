@@ -7,9 +7,7 @@ import numpy as np
 import clip
 import torch
 import math
-from scipy.stats import truncnorm
 from PIL import Image, ImageDraw
-from torchvision.transforms import ToPILImage
 from .config import SEMANTIC_DIPOLES_CORPORA
 
 
@@ -37,20 +35,14 @@ def create_exp_dir(args):
     exp_dir += "-K{}-D{}".format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
     exp_dir += "-lss_beta_{}".format(args.lss_beta)
     exp_dir += "-eps{}_{}".format(args.min_shift_magnitude, args.max_shift_magnitude)
-    if args.styleclip:
-        exp_dir += "-styleclip"
-    elif args.linear:
-        exp_dir += "-linear"
-    else:
-        exp_dir += "-nonlinear_css_beta_{}".format(args.css_beta)
-
+    exp_dir += "-css_beta_{}".format(args.css_beta)
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
-    if args.id:
-        exp_dir += "+{}xID".format(args.lambda_id)
     exp_dir += "-{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
+    if args.exp_id:
+        exp_dir += "-{}".format(args.exp_id)
 
     # Create output directory (wip)
     wip_dir = osp.join("experiments", "wip", exp_dir)
@@ -84,11 +76,10 @@ class PromptFeatures:
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': [], 'id_loss': []}
+        self.stat_tracker = {'loss': []}
 
-    def update(self, loss, id_loss):
+    def update(self, loss):
         self.stat_tracker['loss'].append(float(loss))
-        self.stat_tracker['id_loss'].append(float(id_loss))
 
     def get_means(self):
         stat_means = dict()
@@ -99,34 +90,6 @@ class TrainingStatTracker(object):
     def flush(self):
         for key in self.stat_tracker.keys():
             self.stat_tracker[key] = []
-
-
-def sample_z(batch_size, dim_z, truncation=None):
-    """Sample a random latent code from multi-variate standard Gaussian distribution with/without truncation.
-
-    Args:
-        batch_size (int)   : batch size (number of latent codes)
-        dim_z (int)        : latent space dimensionality
-        truncation (float) : truncation parameter
-
-    Returns:
-        z (torch.Tensor)   : batch of latent codes
-    """
-    if truncation is None or truncation == 1.0:
-        return torch.randn(batch_size, dim_z)
-    else:
-        return torch.from_numpy(truncnorm.rvs(-truncation, truncation, size=(batch_size, dim_z))).to(torch.float)
-
-
-def tensor2image(tensor, adaptive=False):
-    tensor = tensor.squeeze(dim=0)
-    if adaptive:
-        tensor = (tensor - tensor.min()) / (tensor.max() - tensor.min())
-        return ToPILImage()((255 * tensor.cpu().detach()).to(torch.uint8))
-    else:
-        tensor = (tensor + 1) / 2
-        tensor.clamp(0, 1)
-        return ToPILImage()((255 * tensor.cpu().detach()).to(torch.uint8))
 
 
 def update_progress(msg, total, progress):

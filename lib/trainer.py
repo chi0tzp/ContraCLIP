@@ -133,27 +133,21 @@ class Trainer(object):
             print()
         print("         ===================================================================")
         print("      \\__Loss           : {:.08f}".format(stats['loss']))
-        if self.params.id:
-            print("      \\__ID Loss        : {:.08f}".format(stats['id_loss']))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
-        if self.params.id:
-            update_stdout(9)
-        else:
-            update_stdout(8)
+        update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_comp=None):
-        """GANxPlainer training function.
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model):
+        """ContraCLIP training function.
 
         Args:
             generator           : non-trainable (pre-trained) GAN generator
             latent_support_sets : trainable LSS model -- interpretable latent paths model
             corpus_support_sets : non-trainable CSS model -- non-linear paths in the CLIP space
             clip_model          : non-trainable (pre-trained) CLIP model
-            id_comp             : non-trainable (pre-trained) ArcFace model
 
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
@@ -170,13 +164,11 @@ class Trainer(object):
         if self.use_cuda:
             generator.cuda().eval()
             clip_model.cuda().eval()
-            id_comp.cuda().eval()
             corpus_support_sets.cuda()
             latent_support_sets.cuda().train()
         else:
             generator.eval()
             clip_model.eval()
-            id_comp.eval()
             latent_support_sets.train()
 
         # Set latent support sets (LSS) optimizer
@@ -213,7 +205,11 @@ class Trainer(object):
         # Get experiment's start time
         t0 = time.time()
 
-        # Start training
+        ############################################################################################################
+        ##                                                                                                        ##
+        ##                                          [ Training Loop ]                                             ##
+        ##                                                                                                        ##
+        ############################################################################################################
         for iteration in range(starting_iter, self.params.max_iter + 1):
 
             # Get current iteration's start time
@@ -221,7 +217,6 @@ class Trainer(object):
 
             # Set gradients to zero
             generator.zero_grad()
-            id_comp.zero_grad()
             latent_support_sets.zero_grad()
             clip_model.zero_grad()
 
@@ -230,7 +225,9 @@ class Trainer(object):
             if self.use_cuda:
                 z = z.cuda()
 
-            # Generate images for the given latent codes
+            ############################################################################################################
+            ##                          [ Generate images using the original latent codes ]                           ##
+            ############################################################################################################
             latent_code = z
             if 'stylegan' in self.params.gan:
                 if self.params.stylegan_space == 'W':
@@ -240,6 +237,10 @@ class Trainer(object):
                 elif self.params.stylegan_space == 'S':
                     latent_code = generator.get_s(generator.get_w(z, truncation=self.params.truncation))
             img = generator(latent_code)
+
+            ############################################################################################################
+            ##                                   [ Calculate latent shift vectors ]                                   ##
+            ############################################################################################################
 
             # Sample indices of shift vectors (`self.params.batch_size` out of `self.params.num_support_sets`)
             # target_support_sets_indices = torch.randint(0, self.params.num_support_sets, [self.params.batch_size])
@@ -258,7 +259,7 @@ class Trainer(object):
             shift_magnitudes_neg = (self.params.min_shift_magnitude - self.params.max_shift_magnitude) * \
                 torch.rand(target_support_sets_indices.size()) - self.params.min_shift_magnitude
             shift_magnitudes_pool = torch.cat((shift_magnitudes_neg, shift_magnitudes_pos))
-
+            shift_magnitudes_pool = shift_magnitudes_pool[torch.randperm(shift_magnitudes_pool.shape[0])]
             shift_magnitudes_ids = torch.arange(len(shift_magnitudes_pool), dtype=torch.float)
             target_shift_magnitudes = shift_magnitudes_pool[torch.multinomial(input=shift_magnitudes_ids,
                                                                               num_samples=self.params.batch_size,
@@ -268,57 +269,50 @@ class Trainer(object):
 
             # Create support sets mask of size (batch_size, num_support_sets) in the form:
             #       support_sets_mask[i] = [0, ..., 0, 1, 0, ..., 0]
+            # where 1 indicates the i-th element of `target_support_sets_indices`
             support_sets_mask = torch.zeros([self.params.batch_size, latent_support_sets.num_support_sets])
-            prompt_mask = torch.zeros([self.params.batch_size, 2])
-            prompt_sign = torch.zeros([self.params.batch_size, 1])
-            if self.use_cuda:
-                support_sets_mask = support_sets_mask.cuda()
-                prompt_mask = prompt_mask.cuda()
-                prompt_sign = prompt_sign.cuda()
             for i, (index, val) in enumerate(zip(target_support_sets_indices, target_shift_magnitudes)):
                 support_sets_mask[i][index] += 1.0
-                if val >= 0:
-                    prompt_mask[i, 0] = 1.0
-                    prompt_sign[i] = +1.0
-                else:
-                    prompt_mask[i, 1] = 1.0
-                    prompt_sign[i] = -1.0
-            prompt_mask = prompt_mask.unsqueeze(1)
+            if self.use_cuda:
+                support_sets_mask = support_sets_mask.cuda()
 
-            # TODO: Amend comment below
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
-            # self.params.stylegan_space, i.e., in Z-, W-, or W+-space. In the Z-/W-space the dimensionality of the
-            # latent space is 512. In the case of W+-space, the dimensionality is 512 * (self.params.stylegan_layer + 1)
-            if 'stylegan' in self.params.gan:
+            # self.params.stylegan_space, i.e., in Z-, W-, W+, S space. In the Z/W-space the dimensionality of the
+            # latent space is 512, in the W+-space the dimensionality is 512 * (self.params.stylegan_layer + 1), and in
+            # the S-space the dimensionality of the latent space is
+            # sum(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan])
+            if ('stylegan' in self.params.gan) and (self.params.stylegan_space in ('W+', 'S')):
                 if self.params.stylegan_space == 'W+':
-                    shift = latent_support_sets(
+                    latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(
                         support_sets_mask,
                         latent_code[:, :self.params.stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
-                    shift = target_shift_magnitudes.reshape(-1, 1) * shift
                 elif self.params.stylegan_space == 'S':
-                    shift = latent_support_sets(
+                    latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(
                         support_sets_mask,
                         torch.cat([latent_code[k]
                                    for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].keys()], dim=1))
-                    shift = target_shift_magnitudes.reshape(-1, 1) * shift
             else:
-                shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask, latent_code)
+                latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask,
+                                                                                            latent_code)
 
-            # Generate images based on the shifted latent codes
-            if 'stylegan' in self.params.gan:
+            ############################################################################################################
+            ##               [ Add latent shift vectors to original latent codes and generate images ]                ##
+            ############################################################################################################
+            if ('stylegan' in self.params.gan) and (self.params.stylegan_space in ('W+', 'S')):
                 if self.params.stylegan_space == 'W+':
                     latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
-                    shift = F.pad(input=shift,
-                                  pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
-                                  mode='constant',
-                                  value=0)
-                    latent_code_shifted = latent_code_reshaped + shift
+                    latent_shift = F.pad(
+                        input=latent_shift,
+                        pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
+                        mode='constant',
+                        value=0)
+                    latent_code_shifted = latent_code_reshaped + latent_shift
                     latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
                     img_shifted = generator(latent_code_shifted_reshaped)
                 elif self.params.stylegan_space == 'S':
                     latent_code_target_styles_vector = torch.cat(
                         [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].keys()], dim=1)
-                    latent_code_target_styles_vector = latent_code_target_styles_vector + shift
+                    latent_code_target_styles_vector = latent_code_target_styles_vector + latent_shift
                     latent_code_target_styles_tuple = torch.split(
                         tensor=latent_code_target_styles_vector,
                         split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].values()), dim=1)
@@ -332,80 +326,42 @@ class Trainer(object):
                             latent_code_shifted.update({k: latent_code[k]})
                     img_shifted = generator(latent_code_shifted)
             else:
-                img_shifted = generator(latent_code + shift)
+                img_shifted = generator(latent_code + latent_shift)
 
-            # TODO: add comment
-            img_pairs = torch.cat([self.clip_img_transform(img), self.clip_img_transform(img_shifted)], dim=0)
+            # Get CLIP image features for the original and the manipulated (shifted) images
+            img_pairs = self.clip_img_transform(torch.cat([img, img_shifted], dim=0))
             clip_img_pairs_features = clip_model.encode_image(img_pairs)
             clip_img_features, clip_img_shifted_features = torch.split(clip_img_pairs_features, img.shape[0], dim=0)
             clip_img_diff_features = clip_img_shifted_features - clip_img_features
 
             ############################################################################################################
-            ##                                                                                                        ##
-            ##                                 Linear Text Paths (StyleCLIP approach)                                 ##
-            ##                                                                                                        ##
+            ##                           [ Calculate local text directions in CLIP space ]                            ##
             ############################################################################################################
-            if self.params.styleclip:
-                corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-                    -1, 2 * corpus_support_sets.num_support_dipoles, corpus_support_sets.support_vectors_dim)
-                corpus_text_features_batch = torch.matmul(prompt_mask, corpus_text_features_batch).squeeze(1)
+            # REVIEW: Calculate text direction based on:
+            #  `clip_img_features`,
+            #  `clip_img_shifted_features`, or
+            #  `clip_img_diff_features` ?
+            # local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
+            #                                                                                      clip_img_features)
+            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
+                                                                                                 clip_img_shifted_features)
+            # local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
+            #                                                                                      clip_img_diff_features)
 
-                # Calculate cosine similarity loss
-                if self.params.loss == 'cossim':
-                    loss = self.cosine_embedding_loss(clip_img_shifted_features, corpus_text_features_batch,
-                                                      torch.ones(corpus_text_features_batch.shape[0]).to(
-                                                          'cuda' if self.use_cuda else 'cpu'))
-                # Calculate contrastive loss
-                elif self.params.loss == 'contrastive':
-                    loss = self.contrastive_loss(clip_img_shifted_features.float(), corpus_text_features_batch)
+            # Calculate cosine similarity loss
+            if self.params.loss == 'cossim':
+                loss = self.cosine_embedding_loss(clip_img_diff_features, local_text_directions,
+                                                  torch.ones(local_text_directions.shape[0]).to(
+                                                      'cuda' if self.use_cuda else 'cpu'))
+            # Calculate contrastive loss
+            elif self.params.loss == 'contrastive':
+                loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
+                                             txt_batch=local_text_directions)
 
-            ############################################################################################################
-            ##                                                                                                        ##
-            ##                                          Linear Text Paths                                             ##
-            ##                                                                                                        ##
-            ############################################################################################################
-            elif self.params.linear:
-                corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-                    -1, 2 * corpus_support_sets.num_support_dipoles, corpus_support_sets.support_vectors_dim)
+            # Update statistics tracker
+            self.stat_tracker.update(loss=loss.item())
 
-                # Calculate cosine similarity loss
-                if self.params.loss == 'cossim':
-                    loss = self.cosine_embedding_loss(clip_img_diff_features, prompt_sign * (
-                                corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :]) -
-                                                      clip_img_features,
-                                                      torch.ones(corpus_text_features_batch.shape[0]).to(
-                                                          'cuda' if self.use_cuda else 'cpu'))
-                # Calculate contrastive loss
-                elif self.params.loss == 'contrastive':
-                    loss = self.contrastive_loss(clip_img_diff_features.float(), prompt_sign * (
-                                corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :]) -
-                                                 clip_img_features)
-
-            ############################################################################################################
-            ##                                                                                                        ##
-            ##                                        Non-linear Text Paths                                           ##
-            ##                                                                                                        ##
-            ############################################################################################################
-            else:
-                # Calculate local text direction using CSS
-                local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
-                                                                                                     clip_img_features)
-                # Calculate cosine similarity loss
-                if self.params.loss == 'cossim':
-                    loss = self.cosine_embedding_loss(clip_img_diff_features, local_text_directions,
-                                                      torch.ones(local_text_directions.shape[0]).to(
-                                                          'cuda' if self.use_cuda else 'cpu'))
-                # Calculate contrastive loss
-                elif self.params.loss == 'contrastive':
-                    loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
-                                                 txt_batch=local_text_directions)
-
-            # Add ID preserving ArcFace loss
-            if self.params.id:
-                id_loss = self.params.lambda_id * torch.mean(1 - id_comp(img_shifted, img))
-                loss += id_loss
-
-            # Back-propagate!
+            # Back-propagate
             loss.backward()
 
             # Update weights
@@ -413,9 +369,6 @@ class Trainer(object):
             latent_support_sets_optim.step()
             latent_support_sets_lr_scheduler.step()
             clip.model.convert_weights(clip_model)
-
-            # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item(), id_loss=id_loss.item() if self.params.id else 0.0)
 
             # Get time of completion of current iteration
             iter_t = time.time()

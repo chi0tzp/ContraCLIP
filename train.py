@@ -29,7 +29,6 @@ def main():
                                        TODO: read corpus from input file?
         --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                        (0.25 <= css_beta < 1.0)
-        --styleclip                  : use StyleCLIP approach for calculating image-text similarity
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set
@@ -40,7 +39,6 @@ def main():
                                        similarity
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
-        --id                         : add ArcFace id loss
         --lambda-id                  : ID loss weighting parameter
         ===[ CLIP ]=====================================================================================================
 
@@ -60,6 +58,9 @@ def main():
     """
     parser = argparse.ArgumentParser(description="ContraCLIP training script")
 
+    # === Experiment ID ============================================================================================== #
+    parser.add_argument('--exp-id', type=str, help="aux experiment ID")
+
     # === Pre-trained GAN Generator (G) ============================================================================== #
     parser.add_argument('--gan', type=str, choices=GENFORCE_MODELS.keys(), help='GAN generator model')
     parser.add_argument('--stylegan-space', type=str, default='Z', choices=('Z', 'W', 'W+', 'S'),
@@ -74,8 +75,6 @@ def main():
     parser.add_argument('--css-beta', type=float, default=0.5,
                         help="set beta parameter for initializing CLIP space RBFs' gamma parameters "
                              "(0.25 <= css_beta < 1.0)")
-    parser.add_argument('--styleclip', action='store_true',
-                        help="use StyleCLIP approach for calculating image-text similarity")
     parser.add_argument('--linear', action='store_true',
                         help="use the vector connecting the poles of the dipole for calculating image-text similarity")
 
@@ -87,8 +86,6 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-4, help="latent support sets LSS learning rate")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.25, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
-    parser.add_argument('--id', action='store_true', help="add ArcFace ID loss")
-    parser.add_argument('--lambda-id', type=float, default=100.0, help="ID loss weighting parameter")
 
     # === Training =================================================================================================== #
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
@@ -172,7 +169,7 @@ def main():
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
     print("  \\__Text RBF beta param              : {}".format(args.css_beta))
 
-    CSS = SupportSets(prompt_features=prompt_features, css_beta=args.css_beta)
+    CSS = CorpusSupportSets(prompt_features=prompt_features, beta=args.css_beta)
 
     # Set support vector dimensionality and initial gamma param
     support_vectors_dim = G.dim_z
@@ -207,26 +204,22 @@ def main():
     print("  \\__Latent RBF beta param (lss-beta) : {}".format(args.lss_beta))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
 
-    LSS = SupportSets(num_support_sets=prompt_f.num_prompts,
-                      num_support_dipoles=args.num_latent_support_dipoles,
-                      support_vectors_dim=support_vectors_dim,
-                      lss_beta=args.lss_beta,
-                      jung_radius=jung_radius)
+    LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
+                            num_support_dipoles=args.num_latent_support_dipoles,
+                            support_vectors_dim=support_vectors_dim,
+                            beta=args.lss_beta,
+                            jung_radius=jung_radius)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
-
-    # Build ArcFace ID comparator
-    id_comp = IDComparator()
 
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)
 
     # Train
-    t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
-            id_comp=id_comp if args.id else None)
+    t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model)
 
 
 if __name__ == '__main__':

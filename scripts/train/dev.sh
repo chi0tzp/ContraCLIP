@@ -14,6 +14,7 @@ num_latent_support_dipoles=64
 min_shift_magnitude=0.1
 max_shift_magnitude=0.2
 lss_beta=0.5
+lr=1e-3
 
 # ==== Corpus Support Sets (CSS) ==== #
 loss="cossim"
@@ -34,7 +35,7 @@ python train.py --gan=${gan} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --lss-beta=${lss_beta} \
-                --lr=1e-3 \
+                --lr=${lr} \
                 --loss=${loss} \
                 --temperature=${temperature} \
                 --css-beta=${css_beta} \
