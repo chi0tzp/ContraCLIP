@@ -10,16 +10,18 @@ corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=64
-min_shift_magnitude=0.1
-max_shift_magnitude=0.2
-lss_beta=0.5
+min_shift_magnitude=0.2
+max_shift_magnitude=0.3
+lss_beta=0.95
+id_loss=true
+lambda_id=100
 
 # ==== Corpus Support Sets (CSS) ==== #
 linear=false
 styleclip_like=false
 loss="contrastive"
 temperature=0.07
-css_beta=0.5
+css_beta=0.95
 
 # ============ Training ============= #
 batch_size=3
@@ -28,6 +30,11 @@ max_iter=20000
 
 
 # Run training script
+use_id_loss=""
+if $id_loss ; then
+  use_id_loss="--id"
+fi
+
 linear_text=""
 if $linear ; then
   linear_text="--linear"
@@ -47,6 +54,8 @@ python train.py --gan=${gan} \
                 --loss=${loss} \
                 --temperature=${temperature} \
                 --css-beta=${css_beta} \
+                ${use_id_loss} \
+                --lambda-id=${lambda_id} \
                 ${linear_text} \
                 ${styleclip} \
                 --min-shift-magnitude=${min_shift_magnitude} \

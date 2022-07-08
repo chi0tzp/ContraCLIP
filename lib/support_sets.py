@@ -93,8 +93,12 @@ class SupportSets(nn.Module):
             ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
             ############################################################################################################
             # Choose r_min and r_max based on the Jung radius
-            self.r_min = 0.90 * self.jung_radius
-            self.r_max = 1.25 * self.jung_radius
+            # self.r_min = 0.90 * self.jung_radius
+            # self.r_max = 1.25 * self.jung_radius
+
+            self.r_min = 0.95 * self.jung_radius
+            self.r_max = 1.05 * self.jung_radius
+
             self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
             self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
                                                              2 * self.num_support_dipoles * self.support_vectors_dim))

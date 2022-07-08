@@ -140,7 +140,7 @@ class Trainer(object):
         print("         ===================================================================")
         update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model):
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_comp=None):
         """GANxPlainer training function.
 
         Args:
@@ -148,6 +148,7 @@ class Trainer(object):
             latent_support_sets : trainable LSS model -- interpretable latent paths model
             corpus_support_sets : non-trainable CSS model -- non-linear paths in the CLIP space
             clip_model          : non-trainable (pre-trained) CLIP model
+            id_comp             : non-trainable (pre-trained) ArcFace model
 
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
@@ -164,11 +165,13 @@ class Trainer(object):
         if self.use_cuda:
             generator.cuda().eval()
             clip_model.cuda().eval()
+            id_comp.cuda().eval()
             corpus_support_sets.cuda()
             latent_support_sets.cuda().train()
         else:
             generator.eval()
             clip_model.eval()
+            id_comp.eval()
             latent_support_sets.train()
 
         # Set latent support sets (LSS) optimizer
@@ -213,6 +216,7 @@ class Trainer(object):
 
             # Set gradients to zero
             generator.zero_grad()
+            id_comp.zero_grad()
             latent_support_sets.zero_grad()
             clip_model.zero_grad()
 
@@ -286,7 +290,6 @@ class Trainer(object):
                         support_sets_mask,
                         latent_code[:, :self.params.stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
                     shift = target_shift_magnitudes.reshape(-1, 1) * shift
-
                 elif self.params.stylegan_space == 'S':
                     shift = latent_support_sets(
                         support_sets_mask,
@@ -296,18 +299,7 @@ class Trainer(object):
             else:
                 shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask, latent_code)
 
-            # Generate images the shifted latent codes
-            # if ('stylegan' in self.params.gan) and (self.params.stylegan_space == 'W+'):
-            #     latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
-            #     shift = F.pad(input=shift,
-            #                   pad=(0, (STYLEGAN_LAYERS[self.params.gan] - 1 - self.params.stylegan_layer) * 512),
-            #                   mode='constant',
-            #                   value=0)
-            #     latent_code_shifted = latent_code_reshaped + shift
-            #     latent_code_shifted_reshaped = latent_code_shifted.reshape_as(latent_code)
-            #     img_shifted = generator(latent_code_shifted_reshaped)
-            # else:
-            #     img_shifted = generator(latent_code + shift)
+            # Generate images based on the shifted latent codes
             if 'stylegan' in self.params.gan:
                 if self.params.stylegan_space == 'W+':
                     latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
@@ -402,6 +394,11 @@ class Trainer(object):
                 elif self.params.loss == 'contrastive':
                     loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
                                                  txt_batch=local_text_directions)
+
+            # Add ID preserving ArcFace loss
+            if self.params.id:
+                id_loss = torch.mean(1 - id_comp(img_shifted, img))
+                loss += self.params.lambda_id * id_loss
 
             # Back-propagate!
             loss.backward()
