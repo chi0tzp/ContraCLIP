@@ -48,7 +48,7 @@ def create_exp_dir(args):
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
     if args.id:
-        exp_dir += "+ID"
+        exp_dir += "+{}xID".format(args.lambda_id)
     exp_dir += "-{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
 
