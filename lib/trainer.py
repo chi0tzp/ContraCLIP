@@ -295,6 +295,8 @@ class Trainer(object):
                 latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask,
                                                                                             latent_code)
 
+            # print("[DBG] latent_shift : {}".format(torch.norm(latent_shift, dim=1, keepdim=True)))
+
             ############################################################################################################
             ##               [ Add latent shift vectors to original latent codes and generate images ]                ##
             ############################################################################################################
@@ -337,16 +339,17 @@ class Trainer(object):
             ############################################################################################################
             ##                           [ Calculate local text directions in CLIP space ]                            ##
             ############################################################################################################
-            # REVIEW: Calculate text direction based on:
-            #  `clip_img_features`,
-            #  `clip_img_shifted_features`, or
-            #  `clip_img_diff_features` ?
-            # local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
-            #                                                                                      clip_img_features)
-            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
-                                                                                                 clip_img_shifted_features)
-            # local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
-            #                                                                                      clip_img_diff_features)
+            local_text_directions_img = target_shift_magnitudes.reshape(-1, 1) * \
+                corpus_support_sets(support_sets_mask, clip_img_features)
+
+            local_text_directions_img_shifted = target_shift_magnitudes.reshape(-1, 1) * \
+                corpus_support_sets(support_sets_mask, clip_img_features + local_text_directions_img)
+
+            local_text_directions = local_text_directions_img_shifted - clip_img_features
+
+            # print("[DBG] local_text_directions : {}".format(torch.norm(local_text_directions, dim=1, keepdim=True)))
+            # print("target_shift_magnitudes     : {}".format(target_shift_magnitudes))
+            # input("__>")
 
             # Calculate cosine similarity loss
             if self.params.loss == 'cossim':

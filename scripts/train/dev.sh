@@ -5,16 +5,16 @@
 
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
-stylegan_space="S"
+stylegan_space="W+"
 stylegan_layer=11
 corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=64
+num_latent_support_dipoles=32
 min_shift_magnitude=0.1
 max_shift_magnitude=0.2
 lss_beta=0.5
-lr=1e-3
+lr=1e-4
 
 # ==== Corpus Support Sets (CSS) ==== #
 loss="cossim"
