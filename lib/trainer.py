@@ -339,17 +339,8 @@ class Trainer(object):
             ############################################################################################################
             ##                           [ Calculate local text directions in CLIP space ]                            ##
             ############################################################################################################
-            local_text_directions_img = target_shift_magnitudes.reshape(-1, 1) * \
+            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * \
                 corpus_support_sets(support_sets_mask, clip_img_features)
-
-            local_text_directions_img_shifted = target_shift_magnitudes.reshape(-1, 1) * \
-                corpus_support_sets(support_sets_mask, clip_img_features + local_text_directions_img)
-
-            local_text_directions = local_text_directions_img_shifted - clip_img_features
-
-            # print("[DBG] local_text_directions : {}".format(torch.norm(local_text_directions, dim=1, keepdim=True)))
-            # print("target_shift_magnitudes     : {}".format(target_shift_magnitudes))
-            # input("__>")
 
             # Calculate cosine similarity loss
             if self.params.loss == 'cossim':
