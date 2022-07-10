@@ -6,7 +6,7 @@
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
 stylegan_space="W+"
-stylegan_layer=7
+stylegan_layer=6
 corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
@@ -23,7 +23,7 @@ css_beta=0.5
 
 # ============ Training ============= #
 batch_size=3
-max_iter=10000
+max_iter=15000
 # =================================== #
 
 

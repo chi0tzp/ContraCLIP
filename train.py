@@ -27,6 +27,7 @@ def main():
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
                                        TODO: read corpus from input file?
+        TODO--css-learn-gammas           : optimise CSS gamma parameters
         --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
                                        (0.25 <= css_beta < 1.0)
 
@@ -72,6 +73,8 @@ def main():
     # === Corpus Support Sets (CSS) ================================================================================== #
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
+    # TODO
+    parser.add_argument('--css-learn-gammas', action='store_true', help="optimise CSS gamma parameters")
     parser.add_argument('--css-beta', type=float, default=0.5,
                         help="set beta parameter for initializing CLIP space RBFs' gamma parameters "
                              "(0.25 <= css_beta < 1.0)")

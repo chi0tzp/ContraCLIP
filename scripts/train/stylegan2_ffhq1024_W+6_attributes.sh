@@ -6,8 +6,8 @@
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
 stylegan_space="W+"
-stylegan_layer=9
-corpus="expressions3"
+stylegan_layer=6
+corpus="attributes"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=32
@@ -22,8 +22,8 @@ temperature=0.07
 css_beta=0.5
 
 # ============ Training ============= #
-batch_size=3
-max_iter=10000
+batch_size=9
+max_iter=15000
 # =================================== #
 
 

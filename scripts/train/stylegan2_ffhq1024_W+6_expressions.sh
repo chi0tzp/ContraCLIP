@@ -5,13 +5,14 @@
 
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
-stylegan_space="S"
-corpus="expressions3"
+stylegan_space="W+"
+stylegan_layer=6
+corpus="expressions"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=32
-min_shift_magnitude=2.0
-max_shift_magnitude=4.0
+min_shift_magnitude=0.1
+max_shift_magnitude=0.2
 lss_beta=0.5
 lr=1e-3
 
@@ -21,8 +22,8 @@ temperature=0.07
 css_beta=0.5
 
 # ============ Training ============= #
-batch_size=3
-max_iter=10000
+batch_size=14
+max_iter=15000
 # =================================== #
 
 
@@ -30,6 +31,7 @@ max_iter=10000
 python train.py --gan=${gan} \
                 --truncation=0.7 \
                 --stylegan-space=${stylegan_space} \
+                --stylegan-layer=${stylegan_layer} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --lss-beta=${lss_beta} \
