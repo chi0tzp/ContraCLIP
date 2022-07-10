@@ -57,7 +57,7 @@ class Trainer(object):
         self.stat_tracker = TrainingStatTracker()
 
         # Define cosine similarity loss
-        self.cosine_embedding_loss = nn.CosineEmbeddingLoss()
+        self.cosine_embedding_loss = nn.CosineEmbeddingLoss(margin=0.5)
 
         # Define cross entropy loss
         self.cross_entropy_loss = nn.CrossEntropyLoss()
@@ -340,7 +340,11 @@ class Trainer(object):
             ##                           [ Calculate local text directions in CLIP space ]                            ##
             ############################################################################################################
             local_text_directions = target_shift_magnitudes.reshape(-1, 1) * \
-                corpus_support_sets(support_sets_mask, clip_img_features)
+                corpus_support_sets(support_sets_mask, clip_img_shifted_features)
+
+            ############################################################################################################
+            ##                                           [ Calculate loss ]                                           ##
+            ############################################################################################################
 
             # Calculate cosine similarity loss
             if self.params.loss == 'cossim':

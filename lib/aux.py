@@ -30,6 +30,8 @@ def create_exp_dir(args):
     exp_dir = "ContraCLIP_{}".format(args.gan)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
+        if args.stylegan_space == 'W+':
+            exp_dir += "{}".format(args.stylegan_layer)
     else:
         exp_dir += '-Z'
     exp_dir += "-K{}-D{}".format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)

@@ -42,7 +42,7 @@ class LatentSupportSets(nn.Module):
         ############################################################################################################
         # Choose r_min and r_max based on the Jung radius
         self.r_min = 0.90 * self.jung_radius
-        self.r_max = 1.25 * self.jung_radius
+        self.r_max = 0.95 * self.jung_radius
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
         self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
                                                          2 * self.num_support_dipoles * self.support_vectors_dim))
@@ -79,6 +79,9 @@ class LatentSupportSets(nn.Module):
         for k in range(self.num_support_sets):
             g = -np.log(self.beta) / ((2 * self.radii[k]) ** 2)
             self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
+
+        # REVIEW:
+        # self.loggamma = torch.log(torch.scalar_tensor(1.0 / self.support_vectors_dim))
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
