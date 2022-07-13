@@ -96,6 +96,17 @@ def main():
     if use_cuda:
         zs = zs.cuda()
 
+    # Save latent codes in Z/W/+/S spaces under `out_dir`
+    if args.verbose:
+        print("#. Save latent codes under {}...".format(out_dir))
+    torch.save(zs.cpu(), osp.join(out_dir, 'latent_codes_z.pt'))
+    if 'stylegan' in args.gan:
+        wsp = G.get_w(zs, truncation=args.truncation)
+        ws = wsp[:, 0, :]
+        torch.save(ws.cpu(), osp.join(out_dir, 'latent_codes_w.pt'))
+        torch.save(wsp.cpu(), osp.join(out_dir, 'latent_codes_w+.pt'))
+        # TODO: get and save batch of style codes
+
     if args.verbose:
         print("#. Generate images...")
         print("  \\__{}".format(out_dir))
@@ -121,29 +132,6 @@ def main():
             w = wp[:, 0, :]
             # Get S latent codes from wp codes
             styles_dict = G.get_s(wp)
-
-            # REVIEW ==================================
-            # from lib import STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
-            # target_styles_vector = torch.cat([styles_dict[k]
-            #                                   for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].keys()], dim=1)
-            # target_styles_vector += 0.5 * torch.randn_like(target_styles_vector)
-            # target_styles_tuple = torch.split(tensor=target_styles_vector,
-            #                                   split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()), dim=1)
-            # manipulated_styles_dict = dict()
-            # cnt = 0
-            # for k, v in styles_dict.items():
-            #     if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan]:
-            #         manipulated_styles_dict.update({k: target_styles_tuple[cnt]})
-            #         cnt += 1
-            #     else:
-            #         manipulated_styles_dict.update({k: styles_dict[k]})
-            #
-            # with torch.no_grad():
-            #     img_s_manipulated = G(manipulated_styles_dict)
-            # tensor2image(img_s_manipulated.cpu(), adaptive=True).save(
-            #     osp.join(latent_code_dir, 'image_s_manipulated.jpg'),
-            #     "JPEG", quality=95, optimize=True, progressive=True)
-            # REVIEW ==================================
 
             # Generate image
             with torch.no_grad():
