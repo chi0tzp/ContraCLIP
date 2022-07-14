@@ -41,11 +41,10 @@ def create_exp_dir(args):
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
-    # REVIEW
     if args.css_learn_gammas:
-        exp_dir += "+ID"
+        exp_dir += "+ID_{}".format(args.lambda_id)
     exp_dir += "-{}".format(args.max_iter)
-    exp_dir += "-{}".format(args.corpus)
+    exp_dir += "-i{}".format(args.corpus)
     if args.exp_id:
         exp_dir += "-{}".format(args.exp_id)
 

@@ -173,8 +173,13 @@ def main():
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
     print("  \\__Text RBF beta param              : {}".format(args.css_beta))
+    print("  \\__Learn RBF gamma params           : {}".format(args.css_learn_gammas))
 
     CSS = CorpusSupportSets(prompt_features=prompt_features, beta=args.css_beta, learn_gammas=args.css_learn_gammas)
+
+    # Count number of trainable parameters
+    CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
+    print("  \\__Trainable parameters             : {:,}".format(CSS_trainable_parameters))
 
     # Set support vector dimensionality and initial gamma param
     support_vectors_dim = G.dim_z

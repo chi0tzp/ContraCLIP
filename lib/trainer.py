@@ -88,10 +88,10 @@ class Trainer(object):
 
         return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
 
-    def get_starting_iteration(self, latent_support_sets):
+    def get_starting_iteration(self, latent_support_sets, corpus_support_sets):
         """Check if checkpoint file exists (under `self.models_dir`) and set starting iteration at the checkpoint
-        iteration; also load checkpoint weights to `latent_support_sets`. Otherwise, set starting iteration to 1 in
-        order to train from scratch.
+        iteration; also load checkpoint weights to `latent_support_sets` and `corpus_support_sets`. Otherwise, set
+        starting iteration to 1 in order to train from scratch.
 
         Returns:
             starting_iter (int): starting iteration
@@ -102,6 +102,7 @@ class Trainer(object):
             checkpoint_dict = torch.load(self.checkpoint)
             starting_iter = checkpoint_dict['iter']
             latent_support_sets.load_state_dict(checkpoint_dict['latent_support_sets'])
+            corpus_support_sets.load_state_dict(checkpoint_dict['corpus_support_sets'])
 
         return starting_iter
 
@@ -200,7 +201,7 @@ class Trainer(object):
         #     corpus_support_sets_optim = torch.optim.Adam(corpus_support_sets.parameters(), lr=self.params.css_lr)
 
         # Get starting iteration
-        starting_iter = self.get_starting_iteration(latent_support_sets)
+        starting_iter = self.get_starting_iteration(latent_support_sets, corpus_support_sets)
 
         # Parallelize models into multiple GPUs, if available and `multi_gpu=True`.
         if self.multi_gpu:
@@ -418,6 +419,7 @@ class Trainer(object):
                 checkpoint_dict = {
                     'iter': iteration,
                     'latent_support_sets': latent_support_sets.state_dict(),
+                    'corpus_support_sets': corpus_support_sets.state_dict()
                 }
                 torch.save(checkpoint_dict, self.checkpoint)
         # === End of training loop ===
@@ -425,9 +427,11 @@ class Trainer(object):
         # Get experiment's total elapsed time
         elapsed_time = time.time() - t0
 
-        # Save final latent support sets (LSS) model
+        # Save final latent and corpus support sets models
         latent_support_sets_model_filename = osp.join(self.models_dir, 'latent_support_sets.pt')
         torch.save(latent_support_sets.state_dict(), latent_support_sets_model_filename)
+        corpus_support_sets_model_filename = osp.join(self.models_dir, 'corpus_support_sets.pt')
+        torch.save(corpus_support_sets.state_dict(), corpus_support_sets_model_filename)
 
         for _ in range(10):
             print()
