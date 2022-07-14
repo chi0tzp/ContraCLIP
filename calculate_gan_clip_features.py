@@ -60,7 +60,9 @@ def main():
                                                                   (0.26862954, 0.26130258, 0.27577711))])
 
     gan_cnt = 0
-    for gan in GENFORCE_MODELS.keys():
+    # for gan in GENFORCE_MODELS.keys():
+    for gan in ('stylegan2_ffhq1024', 'pggan_celebahq1024', 'stylegan2_afhqcat512', 'stylegan2_afhqdog512',
+                'stylegan2_car512'):
         gan_cnt += 1
         print("#. GAN: {} [{}/{}]".format(gan, gan_cnt, len(GENFORCE_MODELS.keys())))
 
@@ -86,7 +88,8 @@ def main():
             if use_cuda:
                 zs = zs.cuda()
 
-            TRUNCATION_VALUES = (0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+            # TRUNCATION_VALUES = (0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+            TRUNCATION_VALUES = (0.7, )
             print("  \\__.Use truncation in {}".format(TRUNCATION_VALUES))
             for truncation in TRUNCATION_VALUES:
                 # Split latent codes in batches
