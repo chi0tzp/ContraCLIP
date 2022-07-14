@@ -5,6 +5,7 @@ from .config import SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES
 from .config import ContraCLIP_models
 from .latent_support_sets import LatentSupportSets
 from .corpus_support_sets import CorpusSupportSets
+from .id_loss import IDLoss
 from .trainer import Trainer
 from .data import PathImages
 from .evaluation.sfd.sfd_detector import SFDDetector

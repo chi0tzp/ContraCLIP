@@ -27,21 +27,21 @@ def main():
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
                                        TODO: read corpus from input file?
-        TODO--css-learn-gammas           : optimise CSS gamma parameters
-        --css-beta                   : set beta parameter for fixing CLIP space RBFs' gamma parameters
-                                       (0.25 <= css_beta < 1.0)
 
+        --css-beta                   : set beta parameter for initialising CLIP space RBFs' gamma parameters
+                                       (0.25 <= css_beta < 1.0)
+        --css-learn-gammas           : optimise CSS gamma parameters during training
+        --lambda-id                  : ID loss weighting parameter
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set
         --lss-beta                   : set beta parameter for initializing latent space RBFs' gamma parameters
                                        (0.0 < lss_beta < 1.0)
-        --lr                         : set learning rate for learning the latent support sets LSS (with Adam optimizer)
+        --lss-lr                     : set learning rate for learning the latent support sets LSS (with Adam optimizer)
         --linear                     : use the vector connecting the poles of the dipole for calculating image-text
                                        similarity
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
-        --lambda-id                  : ID loss weighting parameter
-        ===[ CLIP ]=====================================================================================================
+
 
 
         ===[ Training ]=================================================================================================
@@ -73,11 +73,12 @@ def main():
     # === Corpus Support Sets (CSS) ================================================================================== #
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    # TODO
-    parser.add_argument('--css-learn-gammas', action='store_true', help="optimise CSS gamma parameters")
     parser.add_argument('--css-beta', type=float, default=0.5,
                         help="set beta parameter for initializing CLIP space RBFs' gamma parameters "
                              "(0.25 <= css_beta < 1.0)")
+    parser.add_argument('--css-learn-gammas', action='store_true', help="optimise CSS gamma parameters")
+    parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
+    parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets (LSS) learning rate")
     parser.add_argument('--linear', action='store_true',
                         help="use the vector connecting the poles of the dipole for calculating image-text similarity")
 
@@ -86,9 +87,10 @@ def main():
     parser.add_argument('--lss-beta', type=float, default=0.1,
                         help="set beta parameter for initializing latent space RBFs' gamma parameters "
                              "(0.25 < css_beta < 1.0)")
-    parser.add_argument('--lr', type=float, default=1e-4, help="latent support sets LSS learning rate")
-    parser.add_argument('--min-shift-magnitude', type=float, default=0.25, help="minimum latent shift magnitude")
-    parser.add_argument('--max-shift-magnitude', type=float, default=0.45, help="maximum latent shift magnitude")
+
+
+    parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
+    parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
 
     # === Training =================================================================================================== #
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
@@ -172,7 +174,7 @@ def main():
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
     print("  \\__Text RBF beta param              : {}".format(args.css_beta))
 
-    CSS = CorpusSupportSets(prompt_features=prompt_features, beta=args.css_beta)
+    CSS = CorpusSupportSets(prompt_features=prompt_features, beta=args.css_beta, learn_gammas=args.css_learn_gammas)
 
     # Set support vector dimensionality and initial gamma param
     support_vectors_dim = G.dim_z
@@ -217,12 +219,18 @@ def main():
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
 
+    # Build ID loss (ArcFace)
+    if args.css_learn_gammas:
+        print("#. Build ArcFace (ID loss)...")
+    id_loss = IDLoss()
+
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)
 
     # Train
-    t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model)
+    t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
+            id_loss=id_loss if args.css_learn_gammas else None)
 
 
 if __name__ == '__main__':

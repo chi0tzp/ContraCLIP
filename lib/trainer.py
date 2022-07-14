@@ -133,22 +133,29 @@ class Trainer(object):
             print()
         print("         ===================================================================")
         print("      \\__Loss           : {:.08f}".format(stats['loss']))
+        if self.params.css_learn_gammas:
+            print("      \\__Loss ID        : {:.08f}".format(stats['loss_id']))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
-        update_stdout(8)
+        if self.params.css_learn_gammas:
+            update_stdout(9)
+        else:
+            update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model):
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None):
         """ContraCLIP training function.
 
         Args:
             generator           : non-trainable (pre-trained) GAN generator
             latent_support_sets : trainable LSS model -- interpretable latent paths model
-            corpus_support_sets : non-trainable CSS model -- non-linear paths in the CLIP space
+            corpus_support_sets : CSS model -- non-linear paths in the CLIP space (trainable or non-trainable based on
+                                  `self.params.css_learn_gammas`)
             clip_model          : non-trainable (pre-trained) CLIP model
-
+            id_loss             : if `self.params.css_learn_gammas` is set, gamma parameters of corpus_support_sets
+                                  (CSS) will be optimised during training under an additional ID preserving criterion
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
         torch.save(latent_support_sets.state_dict(), osp.join(self.models_dir, 'latent_support_sets_init.pt'))
@@ -164,12 +171,21 @@ class Trainer(object):
         if self.use_cuda:
             generator.cuda().eval()
             clip_model.cuda().eval()
-            corpus_support_sets.cuda()
             latent_support_sets.cuda().train()
+            if self.params.css_learn_gammas:
+                corpus_support_sets.cuda().train()
+                id_loss.cuda().eval()
+            else:
+                corpus_support_sets.cuda().eval()
         else:
             generator.eval()
             clip_model.eval()
             latent_support_sets.train()
+            if self.params.css_learn_gammas:
+                corpus_support_sets.train()
+                id_loss.eval()
+            else:
+                corpus_support_sets.eval()
 
         # Set latent support sets (LSS) optimizer
         latent_support_sets_optim = torch.optim.Adam(latent_support_sets.parameters(), lr=self.params.lr)
@@ -178,6 +194,10 @@ class Trainer(object):
         latent_support_sets_lr_scheduler = StepLR(optimizer=latent_support_sets_optim,
                                                   step_size=int(0.9 * self.params.max_iter),
                                                   gamma=0.1)
+
+        # if self.params.css_learn_gammas:
+        #     # Set corpus support sets (CSS) optimizer
+        #     corpus_support_sets_optim = torch.optim.Adam(corpus_support_sets.parameters(), lr=self.params.css_lr)
 
         # Get starting iteration
         starting_iter = self.get_starting_iteration(latent_support_sets)
@@ -356,8 +376,12 @@ class Trainer(object):
                 loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
                                              txt_batch=local_text_directions)
 
+            if self.params.css_learn_gammas:
+                loss_id = self.params.lambda_id * id_loss(y_hat=img_shifted, y=img)
+                loss += loss_id
+
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item())
+            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id if self.params.css_learn_gammas else 0.0)
 
             # Back-propagate
             loss.backward()
@@ -367,7 +391,8 @@ class Trainer(object):
             latent_support_sets_optim.step()
             latent_support_sets_lr_scheduler.step()
             clip.model.convert_weights(clip_model)
-
+            # if self.params.css_learn_gammas:
+            #     corpus_support_sets_optim.step()
             # Get time of completion of current iteration
             iter_t = time.time()
 
