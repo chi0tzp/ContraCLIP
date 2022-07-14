@@ -188,8 +188,12 @@ class Trainer(object):
             else:
                 corpus_support_sets.eval()
 
-        # Set latent support sets (LSS) optimizer
-        latent_support_sets_optim = torch.optim.Adam(latent_support_sets.parameters(), lr=self.params.lr)
+        # Set up LSS (+CSS) optimizer
+        learnable_parameters = list(latent_support_sets.parameters())
+        if self.params.css_learn_gammas:
+            learnable_parameters += list(corpus_support_sets.parameters())
+
+        latent_support_sets_optim = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
         # Set learning rate scheduler -- reduce lr after 90% of the total number of training iterations
         latent_support_sets_lr_scheduler = StepLR(optimizer=latent_support_sets_optim,
@@ -384,8 +388,16 @@ class Trainer(object):
             # Update statistics tracker
             self.stat_tracker.update(loss=loss.item(), loss_id=loss_id if self.params.css_learn_gammas else 0.0)
 
+            # print("corpus_support_sets.LOGGAMMA")
+            # print(corpus_support_sets.LOGGAMMA)
+
             # Back-propagate
             loss.backward()
+
+            # print("-->")
+            # print("corpus_support_sets.LOGGAMMA")
+            # print(corpus_support_sets.LOGGAMMA)
+            # print('--------------------------')
 
             # Update weights
             clip_model.float()
