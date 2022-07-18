@@ -27,16 +27,10 @@ def main():
                                        sets; i.e., the number of warping functions -- number of the interpretable latent
                                        paths to be optimised
                                        TODO: read corpus from input file?
-
-        --css-beta                   : set beta parameter for initialising CLIP space RBFs' gamma parameters
-                                       (0.25 <= css_beta < 1.0)
-        --css-learn-gammas           : optimise CSS gamma parameters during training
         --lambda-id                  : ID loss weighting parameter
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set
-        --lss-beta                   : set beta parameter for initializing latent space RBFs' gamma parameters
-                                       (0.0 < lss_beta < 1.0)
-        --lss-lr                     : set learning rate for learning the latent support sets LSS (with Adam optimizer)
+        --lr                         : set learning rate for learning the latent support sets LSS (with Adam optimizer)
         --linear                     : use the vector connecting the poles of the dipole for calculating image-text
                                        similarity
         --min-shift-magnitude        : set minimum latent shift magnitude
@@ -73,24 +67,16 @@ def main():
     # === Corpus Support Sets (CSS) ================================================================================== #
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--css-beta', type=float, default=0.5,
-                        help="set beta parameter for initializing CLIP space RBFs' gamma parameters "
-                             "(0.25 <= css_beta < 1.0)")
-    parser.add_argument('--css-learn-gammas', action='store_true', help="optimise CSS gamma parameters")
-    parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
     parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets (LSS) learning rate")
     parser.add_argument('--linear', action='store_true',
                         help="use the vector connecting the poles of the dipole for calculating image-text similarity")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
-    parser.add_argument('--lss-beta', type=float, default=0.1,
-                        help="set beta parameter for initializing latent space RBFs' gamma parameters "
-                             "(0.25 < css_beta < 1.0)")
-
-
     parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
+    parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
+    parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
 
     # === Training =================================================================================================== #
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
@@ -167,15 +153,26 @@ def main():
     prompt_f = PromptFeatures(prompt_corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus], clip_model=clip_model)
     prompt_features = prompt_f.get_prompt_features()
 
+    # Get CSS dipole betas
+    if 'stylegan' in args.gan:
+        dipole_betas_file = osp.join('experiments', 'css_betas',
+                                     '{}-W-truncation-{}_{}_betas.json'.format(args.gan, args.truncation, args.corpus))
+    else:
+        dipole_betas_file = osp.join('experiments', 'css_betas', '{}_{}_betas.json'.format(args.gan, args.corpus))
+    with open(dipole_betas_file, 'r') as f:
+        dipole_betas_ = json.load(f)
+    dipole_betas = []
+    for i in range(len(SEMANTIC_DIPOLES_CORPORA[args.corpus])):
+        dipole_betas.append([dipole_betas_[i][SEMANTIC_DIPOLES_CORPORA[args.corpus][i][0]],
+                             dipole_betas_[i][SEMANTIC_DIPOLES_CORPORA[args.corpus][i][1]]])
+
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
     print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
-    print("  \\__Text RBF beta param              : {}".format(args.css_beta))
-    print("  \\__Learn RBF gamma params           : {}".format(args.css_learn_gammas))
 
-    CSS = CorpusSupportSets(prompt_features=prompt_features, beta=args.css_beta, learn_gammas=args.css_learn_gammas)
+    CSS = CorpusSupportSets(prompt_features=prompt_features, dipole_betas=dipole_betas)
 
     # Count number of trainable parameters
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
@@ -211,13 +208,11 @@ def main():
     print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
-    print("  \\__Latent RBF beta param (lss-beta) : {}".format(args.lss_beta))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
 
     LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
-                            beta=args.lss_beta,
                             jung_radius=jung_radius)
 
     # Count number of trainable parameters
@@ -225,7 +220,7 @@ def main():
     print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
 
     # Build ID loss (ArcFace)
-    if args.css_learn_gammas:
+    if args.id:
         print("#. Build ArcFace (ID loss)...")
     id_loss = IDLoss()
 
@@ -235,7 +230,7 @@ def main():
 
     # Train
     t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
-            id_loss=id_loss if args.css_learn_gammas else None)
+            id_loss=id_loss if args.id else None)
 
 
 if __name__ == '__main__':

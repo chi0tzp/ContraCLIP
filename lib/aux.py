@@ -16,12 +16,10 @@ def create_exp_dir(args):
     the given command (bash script).
 
     Experiment's directory name format:
-        ContraCLIP-<gan_type>(-{Z,W,W+})-K<num_latent_support_sets>-D<num_latent_support_dipoles>-css_beta_<css_beta>
-            -eps<min_shift_magnitude>_<max_shift_magnitude>
-            (-<nonlinear_css_beta-<css_beta>/linear/styleclip>)(-<contrastive_<temperature>/cossim>)-<max_iter>-<prompt>
+        TODO:
 
         E.g.:
-            ContraCLIP_stylegan2_ffhq1024-W+-K3-D128-eps0.1_0.2-nonlinear_beta-0.75-contrastive_1.0-10000-expressions3
+            TODO
 
     Args:
         args (argparse.Namespace): the namespace object returned by `parse_args()` for the current run
@@ -35,14 +33,12 @@ def create_exp_dir(args):
     else:
         exp_dir += '-Z'
     exp_dir += "-K{}-D{}".format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
-    exp_dir += "-lss_beta_{}".format(args.lss_beta)
     exp_dir += "-eps{}_{}".format(args.min_shift_magnitude, args.max_shift_magnitude)
-    exp_dir += "-css_beta_{}".format(args.css_beta)
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
-    if args.css_learn_gammas:
-        exp_dir += "+ID_{}".format(args.lambda_id)
+    if args.id:
+        exp_dir += "+{}xID".format(args.lambda_id)
     exp_dir += "-iter_{}".format(args.max_iter)
     exp_dir += "-{}".format(args.corpus)
     if args.exp_id:

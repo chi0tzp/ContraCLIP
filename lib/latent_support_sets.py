@@ -74,14 +74,13 @@ class LatentSupportSets(nn.Module):
         ############################################################################################################
         ##                                          [ GAMMAS: (K, N) ]                                            ##
         ############################################################################################################
+        # REVIEW:
+        # self.loggamma = torch.log(torch.scalar_tensor(1.0 / self.support_vectors_dim))
         # Define RBF loggammas
         self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
         for k in range(self.num_support_sets):
             g = -np.log(self.beta) / ((2 * self.radii[k]) ** 2)
             self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
-
-        # REVIEW:
-        # self.loggamma = torch.log(torch.scalar_tensor(1.0 / self.support_vectors_dim))
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
