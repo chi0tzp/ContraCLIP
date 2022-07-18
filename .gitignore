@@ -19,3 +19,4 @@ scripts/compare/BACKUP/
 experiments/*
 experiments/latent_codes/TMP/
 !experiments/latent_codes/
+!experiments/css_betas/
