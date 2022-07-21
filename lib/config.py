@@ -168,8 +168,8 @@ SEMANTIC_DIPOLES_CORPORA = {
         [
             ["a photo of a person with a happy face.",
              "a photo of a person with an angry face."],
-            ["a photo of a person with a sad face.",
-             "a photo of a person with a disgusted face."],
+            ["a photo of an old person.",
+             "a photo of a young person."],
         ]
 }
 
@@ -179,8 +179,8 @@ SEMANTIC_DIPOLES_CORPORA = {
 ##                                          [ Pre-trained ContraCLIP models ]                                         ##
 ##                                                                                                                    ##
 ########################################################################################################################
-ContraCLIP_models = ('https://www.dropbox.com/s/bootpdxhnp9z6ce/contraclip_models.tar?dl=1',
-                     '0941c96d311700ef881bed38350d6d0cc38151255a34db94a5f9400758398a7f')
+# TODO: to appear soon
+ContraCLIP_models = ('XXX', 'XXX')
 
 ########################################################################################################################
 ##                                                                                                                    ##
@@ -236,19 +236,16 @@ CELEBA_ATTRIBUTES = ('https://www.dropbox.com/s/bxbegherkpvgbw9/celeba_attribute
 ##                                                                                                                    ##
 ########################################################################################################################
 GENFORCE = ('https://www.dropbox.com/s/3osul10173lbhut/genforce.tar?dl=1',
-            'f9a0f98435cac4fb7599c2cc29858e48365c0998f9f48079efa5faf6c07aa3e1')
+            '369f13eade75f906ab74dc826b9e9f795fd4137d20f1c8e4e28bb92b5ba8b1a7')
 
 GENFORCE_MODELS = {
     # ===[ ProgGAN ]===
     'pggan_celebahq1024': ('pggan_celebahq1024.pth', 1024),
-    'pggan_church256': ('pggan_church256.pth', 256),
-    'pggan_car256': ('pggan_car256.pth', 256),
     # ===[ StyleGAN2 ]===
     'stylegan2_ffhq1024': ('stylegan2_ffhq1024.pth', 1024),
     'stylegan2_afhqcat512': ('stylegan2_afhqcat512.pth', 512),
     'stylegan2_afhqdog512': ('stylegan2_afhqdog512.pth', 512),
     'stylegan2_car512': ('stylegan2_car512.pth', 512),
-    'stylegan2_church256': ('stylegan2_church256.pth', 256)
 }
 
 STYLEGAN_LAYERS = {

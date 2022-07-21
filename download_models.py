@@ -153,15 +153,16 @@ def main():
         download(src=CELEBA_ATTRIBUTES[0], sha256sum=CELEBA_ATTRIBUTES[1], dest=pretrained_models_root)
 
     # Download pre-trained ContraCLIP models
-    if args.contraclip_models:
-        pretrained_contraclip_root = osp.join('experiments', 'complete')
-        os.makedirs(pretrained_contraclip_root, exist_ok=True)
-
-        print("#. Download pre-trained ContraCLIP models...")
-        print("  \\__.ContraCLIP pre-trained models...")
-        download(src=ContraCLIP_models[0],
-                 sha256sum=ContraCLIP_models[1],
-                 dest=pretrained_contraclip_root)
+    # TODO: to appear soon
+    # if args.contraclip_models:
+    #     pretrained_contraclip_root = osp.join('experiments', 'complete')
+    #     os.makedirs(pretrained_contraclip_root, exist_ok=True)
+    #
+    #     print("#. Download pre-trained ContraCLIP models...")
+    #     print("  \\__.ContraCLIP pre-trained models...")
+    #     download(src=ContraCLIP_models[0],
+    #              sha256sum=ContraCLIP_models[1],
+    #              dest=pretrained_contraclip_root)
 
 
 if __name__ == '__main__':

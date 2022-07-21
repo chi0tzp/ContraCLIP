@@ -60,17 +60,14 @@ Download the prerequisite pre-trained models (GAN generators and various pre-tra
 (contra-clip-venv) $ python download.py -m
 ```
 
-This will create a directory `models/pretrained` with the following sub-directories (~3.3 GiB):
+This will create a directory `models/pretrained` with the following sub-directories (~2.5 GiB):
 ```
 ./models/pretrained/
 ├── genforce
-│   ├── pggan_car256.pth
 │   ├── pggan_celebahq1024.pth
-│   ├── pggan_church256.pth
 │   ├── stylegan2_afhqcat512.pth
 │   ├── stylegan2_afhqdog512.pth
 │   ├── stylegan2_car512.pth
-│   ├── stylegan2_church256.pth
 │   └── stylegan2_ffhq1024.pth
 ├── arcface
 │   └── model_ir_se50.pth
@@ -89,26 +86,12 @@ This will create a directory `models/pretrained` with the following sub-director
     └── s3fd-619a316812.pth
 ```
 
-as well as, a directory `experiments/complete/` (if not already created by the user upon an experiment's completion) for downloading the ContraCLIP pre-trained models with the following sub-directories (~160 MiB):
+as well as, a directory `experiments/complete/` (if not already created by the user upon an experiment's completion) for downloading the ContraCLIP pre-trained models with the following sub-directories (~??? MiB):
 
 ```
 .experiments/complete/
-├── ContraCLIP_pggan_celebahq1024-Z-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-attributes
-├── ContraCLIP_pggan_celebahq1024-Z-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-attributes
-├── ContraCLIP_stylegan2_afhqcat512-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-cats
-├── ContraCLIP_stylegan2_afhqdog512-W+-K4-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-dogs
-├── ContraCLIP_stylegan2_car512-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-cars
-├── ContraCLIP_stylegan2_ffhq1024-W+-K21-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-expressions
-├── ContraCLIP_stylegan2_ffhq1024-W+-K21-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-expressions
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-complex
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-expressions3
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-complex
-├── ContraCLIP_stylegan2_ffhq1024-W+-K3-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-expressions3
-├── ContraCLIP_stylegan2_ffhq1024-W+-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-contrastive_0.07-20000-attributes
-└── ContraCLIP_stylegan2_ffhq1024-W+-K9-D64-lss_beta_0.5-eps0.1_0.2-nonlinear_css_beta_0.5-cossim-20000-attributes
+├── To appear soon...
 ```
-
-We note that the pre-trained detectors (such as ArcFace) are used only during the evaluation stage (**no ID preserving loss is imposed during training**).
 
 
 
@@ -148,7 +131,7 @@ As soon as a *ContraCLIP* model is trained, the corresponding experiment's direc
 For example, the following command will create a pool named `stylegan2_ffhq1024-4` under `experiments/latent_codes/stylegan2_ffhq1024/`:
 
 ```bash
-(contra-clip-venv) $ python sample_gan.py -v --gan-type=stylegan2_ffhq1024 --stylegan-space=W --truncation=0.7 --num-samples=4
+(contra-clip-venv) $ python sample_gan.py -v --gan-type=stylegan2_ffhq1024 --truncation=0.7 --num-samples=4
 ```
 
 Latent space traversals can then be calculated using the script `traverse_latent_space.py` (please check its basic usage by running `traverse_latent_space.py -h`) for a given model and a given `POOL`. Upon completion, results (i.e., latent traversals) will be stored under the following directory:

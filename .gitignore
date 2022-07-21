@@ -7,7 +7,6 @@ contra-clip-venv/
 __pycache__/
 */__pycache__/
 dev/
-notebooks/
 figs/inkscape/
 models/pretrained/
 
