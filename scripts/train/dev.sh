@@ -15,14 +15,14 @@ min_shift_magnitude=0.2
 max_shift_magnitude=0.4
 
 # ==== Corpus Support Sets (CSS) ==== #
-loss="cossim"
+loss="contrastive"  # "cossim" or "contrastive"
 temperature=0.07
 learn_css_gammas=false
 id=false
 lambda_id=10000
 
 # ============ Training ============= #
-batch_size=1
+batch_size=2
 max_iter=10000
 # =================================== #
 

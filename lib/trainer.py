@@ -176,7 +176,6 @@ class Trainer(object):
             latent_support_sets.cuda().train()
             if self.params.id:
                 id_loss.cuda().eval()
-
         else:
             generator.eval()
             clip_model.eval()
@@ -185,17 +184,14 @@ class Trainer(object):
             if self.params.id:
                 id_loss.eval()
 
-        # Set up LSS (+CSS) optimizer
+        # Set up optimizer
         learnable_parameters = list(latent_support_sets.parameters())
         if self.params.id:
             learnable_parameters += list(corpus_support_sets.parameters())
+        optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
-        latent_support_sets_optim = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
-
-        # Set learning rate scheduler -- reduce lr after 90% of the total number of training iterations
-        latent_support_sets_lr_scheduler = StepLR(optimizer=latent_support_sets_optim,
-                                                  step_size=int(0.9 * self.params.max_iter),
-                                                  gamma=0.1)
+        # Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
+        lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
 
         # Get starting iteration
         starting_iter = self.get_starting_iteration(latent_support_sets, corpus_support_sets)
@@ -237,6 +233,10 @@ class Trainer(object):
             generator.zero_grad()
             latent_support_sets.zero_grad()
             clip_model.zero_grad()
+            if self.params.id:
+                id_loss.zero_grad()
+            if self.params.learn_css_gammas:
+                corpus_support_sets.zero_grad()
 
             # Sample latent codes from standard Gaussian
             z = torch.randn(self.params.batch_size, generator.dim_z)
@@ -394,8 +394,8 @@ class Trainer(object):
 
             # Update weights
             clip_model.float()
-            latent_support_sets_optim.step()
-            latent_support_sets_lr_scheduler.step()
+            optimizer.step()
+            lr_scheduler.step()
             clip.model.convert_weights(clip_model)
             iter_t = time.time()
 

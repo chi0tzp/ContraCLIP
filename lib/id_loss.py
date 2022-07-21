@@ -27,7 +27,8 @@ class IDLoss(nn.Module):
         n_samples = y.shape[0]
         y_feats = self.extract_feats(y)
         y_hat_feats = self.extract_feats(y_hat)
-        y_feats = y_feats.detach()
+        # REVIEW:
+        # y_feats = y_feats.detach()
         loss = 0
         # TODO: replace for loop
         for i in range(n_samples):
