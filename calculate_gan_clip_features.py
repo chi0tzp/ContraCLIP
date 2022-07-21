@@ -60,9 +60,7 @@ def main():
                                                                   (0.26862954, 0.26130258, 0.27577711))])
 
     gan_cnt = 0
-    # for gan in GENFORCE_MODELS.keys():
-    for gan in ('stylegan2_ffhq1024', 'pggan_celebahq1024', 'stylegan2_afhqcat512', 'stylegan2_afhqdog512',
-                'stylegan2_car512'):
+    for gan in GENFORCE_MODELS.keys():
         gan_cnt += 1
         print("#. GAN: {} [{}/{}]".format(gan, gan_cnt, len(GENFORCE_MODELS.keys())))
 

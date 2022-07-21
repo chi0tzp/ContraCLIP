@@ -4,7 +4,7 @@ import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, prompt_features, dipole_betas):
+    def __init__(self, prompt_features, dipole_betas, learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
@@ -14,6 +14,7 @@ class CorpusSupportSets(nn.Module):
         super(CorpusSupportSets, self).__init__()
         self.prompt_features = prompt_features
         self.dipole_betas = dipole_betas
+        self.learn_gammas = learn_gammas
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -37,10 +38,6 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ ALPHAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define alphas as pairs of [-1, 1] for each dipole
-        # self.ALPHAS = torch.zeros(self.num_support_sets, 2)
-        # for k in range(self.num_support_sets):
-        #     self.ALPHAS[k] = torch.Tensor([1, -1])
-        # REVIEW: Define self.ALPHAS as parameters with `requires_grad=False`
         self.ALPHAS = nn.Parameter(data=torch.zeros(self.num_support_sets, 2), requires_grad=False)
         for k in range(self.num_support_sets):
             self.ALPHAS.data[k] = torch.Tensor([1, -1])
@@ -49,21 +46,12 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=False)
+        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
         for k in range(self.num_support_sets):
-            # g = -np.log(self.beta) / (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
-            # self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g, g]))
             betas = self.dipole_betas[k]
             gammas = -torch.log(torch.Tensor(betas)) / \
                 (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
-            self.LOGGAMMA.data[k] = torch.log(torch.Tensor(gammas))
-
-        # print("self.LOGGAMMA")
-        # print(self.LOGGAMMA)
-        # print(self.LOGGAMMA.shape)
-        # print(torch.exp(self.LOGGAMMA))
-        # import sys
-        # sys.exit()
+            self.LOGGAMMA.data[k] = torch.log(gammas)
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch

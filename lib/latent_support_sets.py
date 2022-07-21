@@ -1,10 +1,9 @@
 import torch
 from torch import nn
-import numpy as np
 
 
 class LatentSupportSets(nn.Module):
-    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.5,
+    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.35,
                  jung_radius=None):
         """LatentSupportSets class constructor.
 
@@ -64,7 +63,8 @@ class LatentSupportSets(nn.Module):
         ##                                          [ ALPHAS: (K, N) ]                                            ##
         ############################################################################################################
         # Define alphas as pairs of [-1, 1] for each dipole
-        self.ALPHAS = torch.zeros(self.num_support_sets, 2 * self.num_support_dipoles)
+        self.ALPHAS = nn.Parameter(data=torch.zeros(self.num_support_sets, 2 * self.num_support_dipoles),
+                                   requires_grad=False)
         for k in range(self.num_support_sets):
             a = []
             for _ in range(self.num_support_dipoles):
@@ -72,15 +72,13 @@ class LatentSupportSets(nn.Module):
             self.ALPHAS.data[k] = torch.Tensor(a)
 
         ############################################################################################################
-        ##                                          [ GAMMAS: (K, N) ]                                            ##
+        ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
-        # REVIEW:
-        # self.loggamma = torch.log(torch.scalar_tensor(1.0 / self.support_vectors_dim))
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
+        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2))
         for k in range(self.num_support_sets):
-            g = -np.log(self.beta) / ((2 * self.radii[k]) ** 2)
-            self.LOGGAMMA.data[k] = torch.log(torch.Tensor([g]))
+            gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[k]) ** 2)
+            self.LOGGAMMA.data[k] = torch.log(gammas)
 
     def forward(self, support_sets_mask, z):
         # Get RBF support sets batch
