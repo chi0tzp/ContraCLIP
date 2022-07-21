@@ -172,21 +172,27 @@ class Trainer(object):
         if self.use_cuda:
             generator.cuda().eval()
             clip_model.cuda().eval()
-            corpus_support_sets.cuda().eval()
             latent_support_sets.cuda().train()
             if self.params.id:
                 id_loss.cuda().eval()
+            if self.params.learn_css_gammas:
+                corpus_support_sets.cuda().train()
+            else:
+                corpus_support_sets.cuda().eval()
         else:
             generator.eval()
             clip_model.eval()
-            corpus_support_sets.eval()
             latent_support_sets.train()
             if self.params.id:
                 id_loss.eval()
+            if self.params.learn_css_gammas:
+                corpus_support_sets.train()
+            else:
+                corpus_support_sets.eval()
 
         # Set up optimizer
         learnable_parameters = list(latent_support_sets.parameters())
-        if self.params.id:
+        if self.params.learn_css_gammas:
             learnable_parameters += list(corpus_support_sets.parameters())
         optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
