@@ -6,18 +6,18 @@
 # ======== GAN Type / Corpus ======== #
 gan="stylegan2_ffhq1024"
 stylegan_space="W+"
-stylegan_layer=7
-corpus="expressions3"
+stylegan_layer=6
+corpus="dev"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=32
-min_shift_magnitude=0.1
-max_shift_magnitude=0.2
-lr=1e-3
+num_latent_support_dipoles=1
+min_shift_magnitude=0.2
+max_shift_magnitude=0.4
 
 # ==== Corpus Support Sets (CSS) ==== #
 loss="cossim"
 temperature=0.07
+learn_css_gammas=false
 id=false
 lambda_id=10000
 
@@ -26,7 +26,12 @@ batch_size=1
 max_iter=10000
 # =================================== #
 
-# Run training script
+
+learn_css_gammas_=""
+if $learn_css_gammas ; then
+  learn_css_gammas_="--learn-css-gammas"
+fi
+
 id_=""
 if $id ; then
   id_="--id"
@@ -39,8 +44,8 @@ python train.py --gan=${gan} \
                 --stylegan-layer=${stylegan_layer} \
                 --corpus=${corpus} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
-                --lr=${lr} \
                 --loss=${loss} \
+                ${learn_css_gammas_} \
                 --lambda-id=${lambda_id} \
                 ${id_} \
                 --temperature=${temperature} \
