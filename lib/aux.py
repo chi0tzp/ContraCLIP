@@ -37,6 +37,8 @@ def create_exp_dir(args):
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
+    if args.learn_css_gammas:
+        exp_dir += "-learn_css_gammas"
     if args.id:
         exp_dir += "+{}xID".format(args.lambda_id)
     exp_dir += "-iter_{}".format(args.max_iter)
@@ -60,15 +62,17 @@ def create_exp_dir(args):
 
 
 class PromptFeatures:
-    def __init__(self, prompt_corpus, clip_model):
+    def __init__(self, prompt_corpus, clip_model, use_cuda):
         self.prompt_corpus = prompt_corpus
-        self.clip_model = clip_model.cpu()
+        self.use_cuda = use_cuda
+        self.clip_model = clip_model.to('cuda' if self.use_cuda else 'cpu')
         self.num_prompts = len(self.prompt_corpus)
         self.prompt_features_dim = 512
 
     def get_prompt_features(self):
         prompt_features = [
-            self.clip_model.encode_text(clip.tokenize(self.prompt_corpus[t]).cpu()).unsqueeze(0) for t in
+            self.clip_model.encode_text(
+                clip.tokenize(self.prompt_corpus[t]).to('cuda' if self.use_cuda else 'cpu')).unsqueeze(0) for t in
             range(len(self.prompt_corpus))
         ]
         return torch.cat(prompt_features, dim=0)

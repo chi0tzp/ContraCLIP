@@ -152,7 +152,9 @@ def main():
     clip_model.eval()
 
     # Get CLIP (non-normalized) text features for the prompts of the given corpus
-    prompt_f = PromptFeatures(prompt_corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus], clip_model=clip_model)
+    prompt_f = PromptFeatures(prompt_corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus],
+                              clip_model=clip_model,
+                              use_cuda=use_cuda)
     prompt_features = prompt_f.get_prompt_features()
 
     # REVIEW: Get CSS dipole betas
