@@ -41,10 +41,16 @@ def main():
     checkpoint_iter = checkpoint_dict['iter']
     print("  \\__Checkpoint iteration: {}".format(checkpoint_iter))
 
-    # Save latent support sets (LSS) weights file
-    print("  \\__Save checkpoint latent support sets LSS weights file...")
-    torch.save(checkpoint_dict['latent_support_sets'],
-               osp.join(models_dir, 'latent_support_sets-{:07d}.pt'.format(checkpoint_iter)))
+    # Save Latent Support Sets (LSS) trained params
+    if 'latent_support_sets' in checkpoint_dict.keys():
+        print("  \\__Save checkpoint latent support sets LSS trained params...")
+        torch.save(checkpoint_dict['latent_support_sets'],
+                   osp.join(models_dir, 'latent_support_sets-{:07d}.pt'.format(checkpoint_iter)))
+    # Save Corpus Support Sets (CSS) trained params
+    if 'corpus_support_sets' in checkpoint_dict.keys():
+        print("  \\__Save checkpoint corpus support sets CSS trained params...")
+        torch.save(checkpoint_dict['corpus_support_sets'],
+                   osp.join(models_dir, 'corpus_support_sets-{:07d}.pt'.format(checkpoint_iter)))
 
 
 if __name__ == '__main__':
