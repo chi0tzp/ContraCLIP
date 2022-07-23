@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
@@ -9,7 +8,7 @@ class CorpusSupportSets(nn.Module):
 
         Args:
             prompt_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
-            dipole_betas ()
+            dipole_betas (list)            : TODO: +++
         """
         super(CorpusSupportSets, self).__init__()
         self.prompt_features = prompt_features

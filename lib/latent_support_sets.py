@@ -3,8 +3,8 @@ from torch import nn
 
 
 class LatentSupportSets(nn.Module):
-    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.95,
-                 jung_radius=None):
+    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.25,
+                 jung_radius=None, tied_dipoles=False):
         """LatentSupportSets class constructor.
 
         Args:
@@ -12,8 +12,8 @@ class LatentSupportSets(nn.Module):
             num_support_dipoles (int) : number of support dipoles per support set (per warping function)
             support_vectors_dim (int) : dimensionality of support vectors (latent space dimensionality, z_dim)
             beta (float)              : set beta parameter for initializing latent space RBFs' gamma parameters
-                                        (0.25 < lss_beta < 1.0)
             jung_radius (float)       : radius of the minimum enclosing ball of a set of a set of 10K latent codes
+            tied_dipoles (bool)       : TODO: +++
         """
         super(LatentSupportSets, self).__init__()
 
@@ -35,6 +35,7 @@ class LatentSupportSets(nn.Module):
         else:
             self.jung_radius = jung_radius
         self.beta = beta
+        self.tied_dipoles = tied_dipoles
 
         ############################################################################################################
         ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
@@ -43,21 +44,39 @@ class LatentSupportSets(nn.Module):
         self.r_min = 0.90 * self.jung_radius
         self.r_max = 0.95 * self.jung_radius
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
-        self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
-                                                         2 * self.num_support_dipoles * self.support_vectors_dim))
-        SUPPORT_SETS = torch.zeros(self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
-        for k in range(self.num_support_sets):
-            SV_set = []
-            for i in range(self.num_support_dipoles):
-                SV = torch.randn(1, self.support_vectors_dim)
-                SV_set.extend([SV, -SV])
-            SV_set = torch.cat(SV_set)
-            SV_set = self.radii[k] * SV_set / torch.norm(SV_set, dim=1, keepdim=True)
-            SUPPORT_SETS[k, :] = SV_set
 
-        # Reshape support sets tensor into a matrix and initialize support sets matrix
-        self.SUPPORT_SETS.data = SUPPORT_SETS.reshape(
-            self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim).clone()
+        # TODO: Define Support Sets parameters and initialise
+        if self.tied_dipoles:
+            # REVIEW
+            #   self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
+            #                                                  2 * self.num_support_dipoles * self.support_vectors_dim))
+            #   self.SUPPORT_SETS: torch.Size([2, 7168])
+            # WIP: define tied dipoles
+            SUPPORT_SETS = []
+            for k in range(self.num_support_sets):
+                A = nn.Parameter(data=torch.ones(1, self.num_support_dipoles * self.support_vectors_dim))
+                SUPPORT_SETS.append(torch.cat([A, -A], dim=1))
+            SUPPORT_SETS = torch.cat(SUPPORT_SETS, dim=0)
+            print("SUPPORT_SETS: {}".format(SUPPORT_SETS.shape))
+
+        else:
+            self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
+                                                             2 * self.num_support_dipoles * self.support_vectors_dim))
+            SUPPORT_SETS_INIT = torch.zeros(self.num_support_sets,
+                                            2 * self.num_support_dipoles,
+                                            self.support_vectors_dim)
+            for k in range(self.num_support_sets):
+                SV_set = []
+                for i in range(self.num_support_dipoles):
+                    SV = torch.randn(1, self.support_vectors_dim)
+                    SV_set.extend([SV, -SV])
+                SV_set = torch.cat(SV_set)
+                SV_set = self.radii[k] * SV_set / torch.norm(SV_set, dim=1, keepdim=True)
+                SUPPORT_SETS_INIT[k, :] = SV_set
+
+            # Reshape support sets tensor into a matrix and initialize support sets matrix
+            self.SUPPORT_SETS.data = SUPPORT_SETS_INIT.reshape(
+                self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim).clone()
 
         ############################################################################################################
         ##                                          [ ALPHAS: (K, N) ]                                            ##

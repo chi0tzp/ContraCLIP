@@ -163,6 +163,7 @@ def main():
                                      stylegan_layer=args.stylegan_layer,
                                      truncation=args.truncation,
                                      gan_generator=G,
+                                     semantic_dipoles=SEMANTIC_DIPOLES_CORPORA[args.corpus],
                                      prompt_features=prompt_features,
                                      exp_dir=exp_dir,
                                      use_cuda=use_cuda,
@@ -173,7 +174,7 @@ def main():
 
     # Get CSS dipole betas
     dipole_betas = exp_preprocessor.calculate_dipole_betas()
-
+    
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
     print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
@@ -207,7 +208,8 @@ def main():
     LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
-                            jung_radius=jung_radius)
+                            jung_radius=jung_radius,
+                            tied_dipoles=False)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
