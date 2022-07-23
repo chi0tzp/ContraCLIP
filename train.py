@@ -157,21 +157,22 @@ def main():
                               use_cuda=use_cuda)
     prompt_features = prompt_f.get_prompt_features()
 
-    # REVIEW: Get CSS dipole betas
-    # if 'stylegan' in args.gan:
-    #     dipole_betas_file = osp.join('experiments', 'css_betas',
-    #                                  '{}-W-truncation-{}_{}_betas.json'.format(args.gan, args.truncation, args.corpus))
-    # else:
-    #     dipole_betas_file = osp.join('experiments', 'css_betas', '{}_{}_betas.json'.format(args.gan, args.corpus))
-    # with open(dipole_betas_file, 'r') as f:
-    #     dipole_betas_ = json.load(f)
-    # dipole_betas = []
-    # for i in range(len(SEMANTIC_DIPOLES_CORPORA[args.corpus])):
-    #     dipole_betas.append([dipole_betas_[i][SEMANTIC_DIPOLES_CORPORA[args.corpus][i][0]],
-    #                          dipole_betas_[i][SEMANTIC_DIPOLES_CORPORA[args.corpus][i][1]]])
-    dipole_betas = []
-    for i in range(len(SEMANTIC_DIPOLES_CORPORA[args.corpus])):
-        dipole_betas.append([0.5, 0.5])
+    # REVIEW: Experiment preprocessing
+    exp_preprocessor = ExpPreprocess(gan_type=args.gan,
+                                     stylegan_space=args.stylegan_space,
+                                     stylegan_layer=args.stylegan_layer,
+                                     truncation=args.truncation,
+                                     gan_generator=G,
+                                     prompt_features=prompt_features,
+                                     exp_dir=exp_dir,
+                                     use_cuda=use_cuda,
+                                     verbose=True)
+
+    # Calculate Jung radius for given latent space
+    jung_radius = exp_preprocessor.calculate_jung_radius()
+
+    # Get CSS dipole betas
+    dipole_betas = exp_preprocessor.calculate_dipole_betas()
 
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
@@ -195,23 +196,6 @@ def main():
             support_vectors_dim *= (args.stylegan_layer + 1)
         elif args.stylegan_space == 'S':
             support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()))
-
-    # Get Jung radii
-    with open(osp.join('models', 'jung_radii.json'), 'r') as f:
-        jung_radii_dict = json.load(f)
-
-    if 'stylegan' in args.gan:
-        if args.stylegan_space == 'W+':
-            lm = jung_radii_dict[args.gan]['W']['{}'.format(args.stylegan_layer)]
-        elif args.stylegan_space == 'W':
-            lm = jung_radii_dict[args.gan]['W']['0']
-        elif args.stylegan_space == 'S':
-            lm = jung_radii_dict[args.gan]['S']
-        else:
-            lm = jung_radii_dict[args.gan]['Z']
-        jung_radius = lm[0] * args.truncation + lm[1]
-    else:
-        jung_radius = jung_radii_dict[args.gan]['Z'][1]
 
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
