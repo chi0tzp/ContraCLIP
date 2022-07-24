@@ -11,19 +11,19 @@ corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=32
-min_shift_magnitude=0.1
-max_shift_magnitude=0.2
+min_shift_magnitude=0.2
+max_shift_magnitude=0.4
 
 # ==== Corpus Support Sets (CSS) ==== #
-loss="cossim"  # "cossim" or "contrastive"
-temperature=0.07
+loss="contrastive"  # "cossim" or "contrastive"
+temperature=0.1
 learn_css_gammas=false
 id=true
-lambda_id=1e3
+lambda_id=1e4
 
 # ============ Training ============= #
 batch_size=3
-max_iter=15000
+max_iter=10001
 # =================================== #
 
 

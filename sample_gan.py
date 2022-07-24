@@ -42,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description="Sample a pre-trained GAN latent space and generate images")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode on")
     parser.add_argument('--gan', type=str, required=True, choices=GENFORCE_MODELS.keys(), help='GAN generator')
-    parser.add_argument('--truncation', type=float, default=1.0, help="W-space truncation parameter")
+    parser.add_argument('--truncation', type=float, default=0.7, help="W-space truncation parameter")
     parser.add_argument('--num-samples', type=int, default=4, help="set number of latent codes to sample")
     parser.add_argument('--cuda', dest='cuda', action='store_true', help="use CUDA during training")
     parser.add_argument('--no-cuda', dest='cuda', action='store_false', help="do NOT use CUDA during training")

@@ -355,16 +355,18 @@ class Trainer(object):
                 img_shifted = generator(latent_code + latent_shift)
 
             # Get CLIP image features for the original and the manipulated (shifted) images
-            img_pairs = self.clip_img_transform(torch.cat([img, img_shifted], dim=0))
-            clip_img_pairs_features = clip_model.encode_image(img_pairs)
+            clip_img_pairs_features = clip_model.encode_image(
+                self.clip_img_transform(torch.cat([img, img_shifted], dim=0)))
             clip_img_features, clip_img_shifted_features = torch.split(clip_img_pairs_features, img.shape[0], dim=0)
             clip_img_diff_features = clip_img_shifted_features - clip_img_features
 
             ############################################################################################################
             ##                           [ Calculate local text directions in CLIP space ]                            ##
             ############################################################################################################
-            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * \
-                corpus_support_sets(support_sets_mask, clip_img_shifted_features)
+            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
+                                                                                                 clip_img_features)
+
+            # TODO: Does it make sense to calculate text vector at clip_img_shifted_features as well?
 
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##

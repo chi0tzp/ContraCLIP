@@ -279,4 +279,6 @@ class ExpPreprocess:
                 print("\t{} | {}".format(self.semantic_dipoles[i][0], dipole_betas[i][0]))
                 print("\t{} | {}".format(self.semantic_dipoles[i][1], dipole_betas[i][1]))
 
+        # TODO: save betas under experiment's dir
+
         return dipole_betas
