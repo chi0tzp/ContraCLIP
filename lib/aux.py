@@ -34,9 +34,11 @@ def create_exp_dir(args):
         exp_dir += '-Z'
     exp_dir += "-K{}-D{}".format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
     exp_dir += "-eps{}_{}".format(args.min_shift_magnitude, args.max_shift_magnitude)
+    exp_dir += '-beta-lss_{}'.format(args.beta_lss)
     exp_dir += "-{}".format(args.loss)
     if args.loss == "contrastive":
         exp_dir += "_{}".format(args.temperature)
+    exp_dir += '-beta-css_{}'.format(args.beta_css)
     if args.learn_css_gammas:
         exp_dir += "-learn_css_gammas"
     if args.id:
