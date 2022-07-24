@@ -174,7 +174,7 @@ def main():
 
     # Get CSS dipole betas
     dipole_betas = exp_preprocessor.calculate_dipole_betas()
-    
+
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
     print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
@@ -204,6 +204,7 @@ def main():
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
+    print("  \\__Learning rate                    : {}".format(args.lr))
 
     LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
                             num_support_dipoles=args.num_latent_support_dipoles,

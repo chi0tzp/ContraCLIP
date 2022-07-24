@@ -10,20 +10,20 @@ stylegan_layer=6
 corpus="expression3"
 
 # ==== Latent Support Sets (LSS) ==== #
-num_latent_support_dipoles=1
-min_shift_magnitude=1.0
-max_shift_magnitude=2.0
+num_latent_support_dipoles=32
+min_shift_magnitude=0.1
+max_shift_magnitude=0.2
 
 # ==== Corpus Support Sets (CSS) ==== #
-loss="contrastive"  # "cossim" or "contrastive"
+loss="cossim"  # "cossim" or "contrastive"
 temperature=0.07
 learn_css_gammas=false
 id=true
-lambda_id=5e4
+lambda_id=1e3
 
 # ============ Training ============= #
 batch_size=3
-max_iter=20000
+max_iter=15000
 # =================================== #
 
 
