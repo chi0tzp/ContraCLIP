@@ -243,8 +243,7 @@ class ExpPreprocess:
 
         if not osp.isfile(gan_clip_features_file):
             raise FileNotFoundError(
-                "File not found: {}. Consider creating it using calculate_gan_clip_features.py".format(
-                    gan_clip_features_file))
+                "File not found: {}. Please download it using download.py.".format(gan_clip_features_file))
         # LOAD GAN CLIP image features
         gan_clip_features = torch.load(gan_clip_features_file, map_location=lambda storage, loc: storage)
         if self.use_cuda:

@@ -7,7 +7,7 @@
 gan="stylegan2_ffhq1024"
 stylegan_space="W+"
 stylegan_layer=6
-corpus="expression3"
+corpus="expressions3"
 
 # ==== Latent Support Sets (LSS) ==== #
 num_latent_support_dipoles=32
