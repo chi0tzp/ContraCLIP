@@ -62,8 +62,7 @@ class LatentSupportSets(nn.Module):
         else:
             self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets,
                                                              2 * self.num_support_dipoles * self.support_vectors_dim))
-            SUPPORT_SETS_INIT = torch.zeros(self.num_support_sets,
-                                            2 * self.num_support_dipoles,
+            SUPPORT_SETS_INIT = torch.zeros(self.num_support_sets, 2 * self.num_support_dipoles,
                                             self.support_vectors_dim)
             for k in range(self.num_support_sets):
                 SV_set = []
@@ -102,9 +101,9 @@ class LatentSupportSets(nn.Module):
         #     for _ in range(self.num_support_dipoles):
         #         lg.extend(loggammas)
         #     self.LOGGAMMA.data[k] = torch.Tensor(lg)
-        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2))
+        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
         for k in range(self.num_support_sets):
-            gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[k]) ** 2)
+            gammas = -torch.log(torch.Tensor([self.beta])) / ((2 * self.radii[k]) ** 2)
             self.LOGGAMMA.data[k] = torch.log(gammas)
 
     def forward(self, support_sets_mask, z):
