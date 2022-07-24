@@ -2,7 +2,7 @@ from .aux import create_exp_dir, PromptFeatures, update_stdout, update_progress,
 from .config import SEMANTIC_DIPOLES_CORPORA
 from .config import GENFORCE, GENFORCE_MODELS, STYLEGAN_LAYERS, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
 from .config import SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES
-from .config import ContraCLIP_models
+from .config import ContraCLIP_models, GAN_CLIP_FEATURES
 from .latent_support_sets import LatentSupportSets
 from .corpus_support_sets import CorpusSupportSets
 from .preprocess import ExpPreprocess

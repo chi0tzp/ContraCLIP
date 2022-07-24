@@ -29,6 +29,9 @@ class ExpPreprocess:
         self.jung_radii_dict = nested_dict()
         self.jung_radii_file = osp.join('experiments', 'wip', self.exp_dir, 'jung_radii.json')
 
+        # TODO: add comment
+        self.gan_clip_features_root = osp.join('models', 'pretrained', 'gan_clip_features')
+
     def calculate_jung_radius(self):
         if self.verbose:
             print("#. Calculate Jung radius...")
@@ -230,9 +233,9 @@ class ExpPreprocess:
 
     def calculate_dipole_betas(self):
         # Read GAN CLIP image features file
-        gan_clip_features_file = osp.join(
-            'experiments', 'gan_clip_features', '{}-W-truncation-{}_img_clip_features_100000.pt'.format(
-                self.gan_type, self.truncation))
+        gan_clip_features_file = osp.join(self.gan_clip_features_root,
+                                          '{}-W-truncation-{}_img_clip_features_100000.pt'.format(self.gan_type,
+                                                                                                  self.truncation))
 
         if self.verbose:
             print("#. Calculate semantic dipole beta params...")
@@ -271,9 +274,10 @@ class ExpPreprocess:
                 dipole_betas[i][1] = 0.1
                 dipole_betas[i][0] = 0.9
 
-        # for i in range(len(dipole_betas)):
-        #     print("i={}".format(i))
-        #     print("\t{} | {}".format(self.semantic_dipoles[i][0], dipole_betas[i][0]))
-        #     print("\t{} | {}".format(self.semantic_dipoles[i][1], dipole_betas[i][1]))
+        if self.verbose:
+            for i in range(len(dipole_betas)):
+                print("i={}".format(i))
+                print("\t{} | {}".format(self.semantic_dipoles[i][0], dipole_betas[i][0]))
+                print("\t{} | {}".format(self.semantic_dipoles[i][1], dipole_betas[i][1]))
 
         return dipole_betas

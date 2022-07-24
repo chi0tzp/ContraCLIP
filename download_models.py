@@ -6,7 +6,8 @@ import hashlib
 import tarfile
 import time
 import urllib.request
-from lib import GENFORCE, GENFORCE_MODELS, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, ContraCLIP_models
+from lib import GENFORCE, GENFORCE_MODELS, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, \
+    ContraCLIP_models, GAN_CLIP_FEATURES
 
 
 def reporthook(count, block_size, total_size):
@@ -151,6 +152,17 @@ def main():
         print("      \\__Already exists.")
     else:
         download(src=CELEBA_ATTRIBUTES[0], sha256sum=CELEBA_ATTRIBUTES[1], dest=pretrained_models_root)
+
+    print("#. Download GAN images CLIP features...")
+    print("  \\__.GAN CLIP features")
+    if osp.exists(osp.join(pretrained_models_root, 'gan_clip_features', 'pggan_celebahq1024_img_clip_features_100000.pt')) and \
+            osp.exists(osp.join(pretrained_models_root, 'gan_clip_features', 'stylegan2_afhqcat512-W-truncation-0.7_img_clip_features_100000.pt')) and \
+            osp.exists(osp.join(pretrained_models_root, 'gan_clip_features', 'stylegan2_afhqdog512-W-truncation-0.7_img_clip_features_100000.pt')) and \
+            osp.exists(osp.join(pretrained_models_root, 'gan_clip_features', 'stylegan2_car512-W-truncation-0.7_img_clip_features_100000.pt')) and \
+            osp.exists(osp.join(pretrained_models_root, 'gan_clip_features', 'stylegan2_ffhq1024-W-truncation-0.7_img_clip_features_100000.pt')):
+        print("      \\__Already exists.")
+    else:
+        download(src=GAN_CLIP_FEATURES[0], sha256sum=GAN_CLIP_FEATURES[1], dest=pretrained_models_root)
 
     # Download pre-trained ContraCLIP models
     # TODO: to appear soon
