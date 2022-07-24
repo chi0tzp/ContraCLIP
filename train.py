@@ -10,33 +10,38 @@ from models.load_generator import load_generator
 
 
 def main():
-    """ContraCLIP -- Training script.
+    """ContraCLIP -- Training script. You may find auxiliary training scripts under scripts/train/.
 
     Options:
+        === [Experiment ID] ============================================================================================
+        --exp-id                     : optional experiment id string
+
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
         --stylegan-space             : set StyleGAN's latent space (Z, W, W+, S) to look for interpretable paths
-        --stylegan-layer             : choose up to which StyleGAN's layer to use for learning latent paths
+        --stylegan-layer             : choose up to which StyleGAN's W+ layer to use for learning latent paths
                                        E.g., if --stylegan-layer=11, then interpretable paths will be learnt in a
-                                       (12 * 512)-dimensional latent space.
-        --truncation                 : set W-space truncation parameter. If set, W-space codes will be truncated
+                                       (12 * 512)-dimensional latent space (i.e., the first 12 layers of the W+ space)
+        --truncation                 : set GAN's sampling truncation parameter
 
         ===[ Corpus Support Sets (CSS) ]================================================================================
-        --corpus                     : choose corpus of prompts (see config.py/PROMPT_CORPUS). The number of elements of
-                                       the tuple PROMPT_CORPUS[args.corpus] will define the number of the latent support
-                                       sets; i.e., the number of warping functions -- number of the interpretable latent
-                                       paths to be optimised
+        --corpus                     : choose corpus of semantic dipoles (i.e., a set of pairs of contrasting sentences
+                                       in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
+                                       found in lib/config.py. You may define new corpora of semantic dipoles following
+                                       the given format
+        --beta-css                   : set the beta parameter for initialising the gamma parameters of the RBFs in the
+                                       CLIP Vision-Language space
         --learn-css-gammas           : optimise CSS RBF gamma parameters
-        --lambda-id                  : ID loss weighting parameter
-        ===[ Latent Support Sets (LSS) ]================================================================================
-        --num-latent-support-dipoles : set number of support dipoles per support set
 
-        --linear                     : use the vector connecting the poles of the dipole for calculating image-text
-                                       similarity
+
+        ===[ Latent Support Sets (LSS) ]================================================================================
+        --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
-
-
+        --beta-lss                   : set the beta parameter for initialising the gamma parameters of the RBFs in the
+                                       GAN's latent space
+        --id                         : impose ID preservation using ArcFace loss
+        --lambda-id                  : ID loss weighting parameter
 
         ===[ Training ]=================================================================================================
         --max-iter                   : set maximum number of training iterations
@@ -68,14 +73,14 @@ def main():
     # === Corpus Support Sets (CSS) ================================================================================== #
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
+    parser.add_argument('--beta-css', type=float, default=0.5, help="CSS RBFs' beta param")
     parser.add_argument('--learn-css-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
-    # TODO
-    # parser.add_argument('--linear', action='store_true', help="")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
+    parser.add_argument('--beta-lss', type=float, default=0.5, help="LSS RBFs' beta param")
     parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
     parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
 
@@ -158,32 +163,23 @@ def main():
     prompt_features = prompt_f.get_prompt_features()
 
     # REVIEW: Experiment preprocessing
-    exp_preprocessor = ExpPreprocess(gan_type=args.gan,
-                                     stylegan_space=args.stylegan_space,
-                                     stylegan_layer=args.stylegan_layer,
-                                     truncation=args.truncation,
-                                     gan_generator=G,
-                                     semantic_dipoles=SEMANTIC_DIPOLES_CORPORA[args.corpus],
-                                     prompt_features=prompt_features,
-                                     exp_dir=exp_dir,
-                                     use_cuda=use_cuda,
-                                     verbose=True)
+    exp_preprocessor = ExpPreprocess(gan_type=args.gan, gan_generator=G, stylegan_space=args.stylegan_space,
+                                     stylegan_layer=args.stylegan_layer, truncation=args.truncation, exp_dir=exp_dir,
+                                     use_cuda=use_cuda, verbose=True)
 
     # Calculate Jung radius for given latent space
     jung_radius = exp_preprocessor.calculate_jung_radius()
-
-    # Get CSS dipole betas
-    dipole_betas = exp_preprocessor.calculate_dipole_betas()
 
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
     print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
+    print("  \\__RBF initial beta param           : {}".format(args.beta_css))
     print("  \\__Learn RBF gammas                 : {}".format(args.learn_css_gammas))
 
     CSS = CorpusSupportSets(prompt_features=prompt_features,
-                            dipole_betas=dipole_betas,
+                            beta=args.beta_css,
                             learn_gammas=args.learn_css_gammas)
 
     # Count number of trainable parameters
@@ -204,12 +200,14 @@ def main():
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
+    print("  \\__RBF initial beta param           : {}".format(args.beta_lss))
     print("  \\__Learning rate                    : {}".format(args.lr))
 
     LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
                             jung_radius=jung_radius,
+                            beta=args.beta_lss,
                             tied_dipoles=False)
 
     # Count number of trainable parameters

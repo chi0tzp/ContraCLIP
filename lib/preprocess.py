@@ -7,20 +7,16 @@ from collections import defaultdict
 
 
 class ExpPreprocess:
-    def __init__(self, gan_type, stylegan_space, stylegan_layer, truncation, gan_generator, semantic_dipoles,
-                 prompt_features, exp_dir, num_samples_jung=10000, batch_size_jung=10, truncation_values=10,
-                 use_cuda=False, verbose=False):
+    def __init__(self, gan_type, gan_generator, stylegan_space, stylegan_layer, truncation, truncation_values=10,
+                 num_samples_jung=10000, exp_dir=None, use_cuda=False, verbose=False):
         self.gan_type = gan_type
+        self.gan_generator = gan_generator
         self.stylegan_space = stylegan_space
         self.stylegan_layer = stylegan_layer
         self.truncation = truncation
-        self.gan_generator = gan_generator
-        self.semantic_dipoles = semantic_dipoles
-        self.prompt_features = prompt_features
-        self.exp_dir = exp_dir
-        self.num_samples_jung = num_samples_jung
-        self.batch_size_jung = batch_size_jung
         self.truncation_values = truncation_values
+        self.num_samples_jung = num_samples_jung
+        self.exp_dir = exp_dir
         self.use_cuda = use_cuda
         self.verbose = verbose
 
@@ -28,9 +24,6 @@ class ExpPreprocess:
         nested_dict = lambda: defaultdict(nested_dict)
         self.jung_radii_dict = nested_dict()
         self.jung_radii_file = osp.join('experiments', 'wip', self.exp_dir, 'jung_radii.json')
-
-        # TODO: add comment
-        self.gan_clip_features_root = osp.join('models', 'pretrained', 'gan_clip_features')
 
     def calculate_jung_radius(self):
         if self.verbose:
@@ -230,55 +223,3 @@ class ExpPreprocess:
             jung_radius = jung_radii_dict['Z'][1]
 
         return jung_radius
-
-    def calculate_dipole_betas(self):
-        # Read GAN CLIP image features file
-        gan_clip_features_file = osp.join(self.gan_clip_features_root,
-                                          '{}-W-truncation-{}_img_clip_features_100000.pt'.format(self.gan_type,
-                                                                                                  self.truncation))
-
-        if self.verbose:
-            print("#. Calculate semantic dipole beta params...")
-            print("  \\__{}".format(gan_clip_features_file))
-
-        if not osp.isfile(gan_clip_features_file):
-            raise FileNotFoundError(
-                "File not found: {}. Please download it using download.py.".format(gan_clip_features_file))
-        # LOAD GAN CLIP image features
-        gan_clip_features = torch.load(gan_clip_features_file, map_location=lambda storage, loc: storage)
-        if self.use_cuda:
-            gan_clip_features = gan_clip_features.cuda()
-
-        if self.verbose:
-            print("  \\__gan_clip_features: {}".format(gan_clip_features.shape))
-
-        dipole_betas = []
-        for i in range(len(self.semantic_dipoles)):
-            img_features = gan_clip_features / gan_clip_features.norm(dim=-1, keepdim=True)
-            txt_features = self.prompt_features[i] / self.prompt_features[i].norm(dim=-1, keepdim=True)
-            similarity_matrix = torch.matmul(txt_features, img_features.T)
-            dipole_betas.append(
-                [
-                    float(((similarity_matrix[0, :] >= similarity_matrix[1, :]).sum() / img_features.shape[0]).detach().cpu().numpy()),
-                    float(((similarity_matrix[0, :] < similarity_matrix[1, :]).sum() / img_features.shape[0]).detach().cpu().numpy())
-                ]
-            )
-
-        # TODO: add comment
-        for i in range(len(dipole_betas)):
-            if dipole_betas[i][0] < 0.1:
-                dipole_betas[i][0] = 0.1
-                dipole_betas[i][1] = 0.9
-            if dipole_betas[i][1] < 0.1:
-                dipole_betas[i][1] = 0.1
-                dipole_betas[i][0] = 0.9
-
-        if self.verbose:
-            for i in range(len(dipole_betas)):
-                print("i={}".format(i))
-                print("\t{} | {}".format(self.semantic_dipoles[i][0], dipole_betas[i][0]))
-                print("\t{} | {}".format(self.semantic_dipoles[i][1], dipole_betas[i][1]))
-
-        # TODO: save betas under experiment's dir
-
-        return dipole_betas

@@ -3,16 +3,17 @@ from torch import nn
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, prompt_features, dipole_betas, learn_gammas=False):
+    def __init__(self, prompt_features, beta, learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
             prompt_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
-            dipole_betas (list)            : TODO: +++
+            beta (float)                   : set the beta parameter for initialising the gamma parameters of the RBFs in
+                                             the CLIP Vision-Language space
         """
         super(CorpusSupportSets, self).__init__()
         self.prompt_features = prompt_features
-        self.dipole_betas = dipole_betas
+        self.beta = beta
         self.learn_gammas = learn_gammas
 
         ################################################################################################################
@@ -47,8 +48,7 @@ class CorpusSupportSets(nn.Module):
         # Define RBF loggammas
         self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
         for k in range(self.num_support_sets):
-            betas = self.dipole_betas[k]
-            gammas = -torch.log(torch.Tensor(betas)) / \
+            gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / \
                 (self.prompt_features[k, 1] - self.prompt_features[k, 0]).norm() ** 2
             self.LOGGAMMA.data[k] = torch.log(gammas)
 
