@@ -13,7 +13,10 @@ declare -a SHIFT_STEPS=(80)
 
 # Define experiment directories list
 declare -a EXPERIMENTS=(
-                        "experiments/complete/XXX"
+                        "experiments/complete/ablation_beta_css/ContraCLIP_stylegan2_ffhq1024-W+6-K2-D32-eps0.1_0.2-beta-lss_0.5-cossim-beta-css_0.25-iter_10000-dev"
+                        "experiments/complete/ablation_beta_css/ContraCLIP_stylegan2_ffhq1024-W+6-K2-D32-eps0.1_0.2-beta-lss_0.5-cossim-beta-css_0.5-iter_10000-dev"
+                        "experiments/complete/ablation_beta_css/ContraCLIP_stylegan2_ffhq1024-W+6-K2-D32-eps0.1_0.2-beta-lss_0.5-cossim-beta-css_0.75-iter_10000-dev"
+                        "experiments/complete/ablation_beta_css/ContraCLIP_stylegan2_ffhq1024-W+6-K2-D32-eps0.1_0.2-beta-lss_0.5-cossim-beta-css_0.95-iter_10000-dev"
                         )
 
 for shift_s in "${SHIFT_STEPS[@]}"
