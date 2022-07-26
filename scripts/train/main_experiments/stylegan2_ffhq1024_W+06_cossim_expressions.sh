@@ -10,7 +10,7 @@ stylegan_layer=6               # In the case of W+ space, choose up to which lay
 corpus="expressions"           # Choose corpus of semantic dipoles from lib/config.py:SEMANTIC_DIPOLES_CORPORA
 
 # ==== Corpus Support Sets (CSS) ===================================================================================== #
-loss="contrastive"             # Choose loss type: "cossim" or "contrastive"
+loss="cossim"                  # Choose loss type: "cossim" or "contrastive"
 temperature=1.0                # Set temperature of contrasting loss
 learn_css_gammas=false         # Optimise CSS RBFs' gammas
 id=true                        # Impose ID preservation using ArcFace
@@ -27,7 +27,7 @@ beta_lss=0.5                   # set the beta parameter for initialising the gam
 
 # === Training ======================================================================================================= #
 batch_size=14                  # Set training batch size (cannot be larger than the size of the given corpus)
-max_iter=30000                 # Set maximum number of training iterations
+max_iter=15000                 # Set maximum number of training iterations
 lr=1e-3                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 # ==================================================================================================================== #
 
