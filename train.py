@@ -1,7 +1,4 @@
-import sys
 import argparse
-import os.path as osp
-import json
 import torch
 import clip
 from lib import *
@@ -32,7 +29,7 @@ def main():
         --beta-css                   : set the beta parameter for initialising the gamma parameters of the RBFs in the
                                        CLIP Vision-Language space
         --learn-css-gammas           : optimise CSS RBF gamma parameters
-
+        --vl-paths                   : type of paths in  the Vision-Language space ('geodesic', 'non-geodesic')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
@@ -75,6 +72,8 @@ def main():
                         help="choose corpus of semantic dipoles")
     parser.add_argument('--beta-css', type=float, default=0.5, help="CSS RBFs' beta param")
     parser.add_argument('--learn-css-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
+    parser.add_argument('--vl-paths', type=str, default='non-geodesic', choices=('geodesic', 'non-geodesic'),
+                        help="TODO")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
@@ -88,9 +87,6 @@ def main():
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
     parser.add_argument('--batch-size', type=int, required=True, help="training batch size -- this should be less than "
                                                                       "or equal to the size of the given corpus")
-    parser.add_argument('--loss', type=str, default='cossim', choices=('cossim', 'contrastive'),
-                        help="loss function")
-    parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
     parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets (LSS) learning rate")
     parser.add_argument('--log-freq', default=10, type=int, help='number of iterations per log')
     parser.add_argument('--ckp-freq', default=1000, type=int, help='number of iterations per checkpoint model saving')
@@ -156,13 +152,11 @@ def main():
     clip_model.float()
     clip_model.eval()
 
-    # Get CLIP (non-normalized) text features for the prompts of the given corpus
-    prompt_f = PromptFeatures(prompt_corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus],
-                              clip_model=clip_model,
-                              use_cuda=use_cuda)
-    prompt_features = prompt_f.get_prompt_features()
+    # Get CLIP (normalized) text features for the semantic dipoles of the given corpus
+    sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus], clip_model=clip_model, use_cuda=use_cuda)
+    semantic_dipoles_features = sd.get_prompt_features()
 
-    # REVIEW: Experiment preprocessing
+    # Experiment preprocessing
     exp_preprocessor = ExpPreprocess(gan_type=args.gan, gan_generator=G, stylegan_space=args.stylegan_space,
                                      stylegan_layer=args.stylegan_layer, truncation=args.truncation, exp_dir=exp_dir,
                                      use_cuda=use_cuda, verbose=True)
@@ -172,14 +166,14 @@ def main():
 
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
-    print("  \\__Number of corpus support sets    : {}".format(prompt_f.num_prompts))
+    print("  \\__Number of corpus support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of corpus support dipoles : {}".format(1))
-    print("  \\__Prompt features dim              : {}".format(prompt_f.prompt_features_dim))
+    print("  \\__Prompt features dim              : {}".format(sd.dim))
     print("  \\__RBF initial beta param           : {}".format(args.beta_css))
     print("  \\__Learn RBF gammas                 : {}".format(args.learn_css_gammas))
+    print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
-    CSS = CorpusSupportSets(prompt_features=prompt_features,
-                            beta=args.beta_css,
+    CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features, beta=args.beta_css,
                             learn_gammas=args.learn_css_gammas)
 
     # Count number of trainable parameters
@@ -196,14 +190,14 @@ def main():
 
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS...")
-    print("  \\__Number of latent support sets    : {}".format(prompt_f.num_prompts))
+    print("  \\__Number of latent support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
     print("  \\__RBF initial beta param           : {}".format(args.beta_lss))
     print("  \\__Learning rate                    : {}".format(args.lr))
 
-    LSS = LatentSupportSets(num_support_sets=prompt_f.num_prompts,
+    LSS = LatentSupportSets(num_support_sets=sd.num_dipoles,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
                             jung_radius=jung_radius,

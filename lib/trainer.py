@@ -295,10 +295,14 @@ class Trainer(object):
             #       support_sets_mask[i] = [0, ..., 0, 1, 0, ..., 0]
             # where 1 indicates the i-th element of `target_support_sets_indices`
             support_sets_mask = torch.zeros([self.params.batch_size, latent_support_sets.num_support_sets])
+            target_shift_signs = torch.zeros_like(target_shift_magnitudes)
             for i, (index, val) in enumerate(zip(target_support_sets_indices, target_shift_magnitudes)):
                 support_sets_mask[i][index] += 1.0
+                target_shift_signs[i] = +1.0 if val >= 0 else -1.0
+
             if self.use_cuda:
                 support_sets_mask = support_sets_mask.cuda()
+                target_shift_signs = target_shift_signs.cuda()
 
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
             # self.params.stylegan_space, i.e., in Z-, W-, W+, S space. In the Z/W-space the dimensionality of the
@@ -354,40 +358,45 @@ class Trainer(object):
             else:
                 img_shifted = generator(latent_code + latent_shift)
 
-            # Get CLIP image features for the original and the manipulated (shifted) images
-            clip_img_pairs_features = clip_model.encode_image(
-                self.clip_img_transform(torch.cat([img, img_shifted], dim=0)))
-            clip_img_features, clip_img_shifted_features = torch.split(clip_img_pairs_features, img.shape[0], dim=0)
-            clip_img_diff_features = clip_img_shifted_features - clip_img_features
+            ############################################################################################################
+            ##                                  [ Image features on the VL sphere ]                                   ##
+            ############################################################################################################
+            # Get VL (CLIP) image features for the original and the manipulated (shifted) images and normalize them
+            vl_img_pairs = clip_model.encode_image(self.clip_img_transform(torch.cat([img, img_shifted], dim=0)))
+            vl_img, vl_img_shifted = torch.split(vl_img_pairs, img.shape[0], dim=0)
+            vl_img = F.normalize(vl_img, p=2, dim=-1)
+            vl_img_shifted = F.normalize(vl_img_shifted, p=2, dim=-1)
+
+            # Get the orthogonal projection of the difference of the VL image features (manipulated minus original) onto
+            # the tangent space T_{vl_img}S^{n-1} and normalize it
+            vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                                                                    w=(vl_img_shifted - vl_img).float())
+            vl_img_diff = F.normalize(vl_img_diff, p=2)
 
             ############################################################################################################
-            ##                           [ Calculate local text directions in CLIP space ]                            ##
+            ##                           [ TODO: +++ ]                            ##
             ############################################################################################################
-            local_text_directions = target_shift_magnitudes.reshape(-1, 1) * corpus_support_sets(support_sets_mask,
-                                                                                                 clip_img_features)
+            if self.params.vl_paths == "non-geodesic":
+                vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
 
-            # TODO: Does it make sense to calculate text vector at clip_img_shifted_features as well?
+            elif self.params.vl_paths == "geodesic":
+                raise NotImplementedError
 
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
             ############################################################################################################
-
             # Calculate cosine similarity loss
-            if self.params.loss == 'cossim':
-                loss = self.cosine_embedding_loss(clip_img_diff_features, local_text_directions,
-                                                  torch.ones(local_text_directions.shape[0]).to(
-                                                      'cuda' if self.use_cuda else 'cpu'))
-            # Calculate contrastive loss
-            elif self.params.loss == 'contrastive':
-                loss = self.contrastive_loss(img_batch=clip_img_diff_features.float(),
-                                             txt_batch=local_text_directions)
+            loss = self.cosine_embedding_loss(vl_img_diff, vl_txt,
+                                              torch.ones(vl_txt.shape[0]).to('cuda' if self.use_cuda else 'cpu'))
 
+            # Calculate ID preserving loss (ArcFace) in the case of face-generating GAN (if self.params.id is set)
+            loss_id = 0.0
             if self.params.id:
                 loss_id = self.params.lambda_id * id_loss(y_hat=img_shifted, y=img)
                 loss += loss_id
 
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id if self.params.id else 0.0)
+            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id)
 
             # print("corpus_support_sets.LOGGAMMA")
             # print(corpus_support_sets.LOGGAMMA)

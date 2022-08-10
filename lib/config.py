@@ -38,23 +38,23 @@ SEMANTIC_DIPOLES_CORPORA = {
     'expressions6':
         [
             # 0
-            ["happy",
-             "neutral"],
+            ["a photo of a person with a happy face.",
+             "a photo of a person with a neutral face."],
             # 1
-            ["angry",
-             "happy"],
+            ["a photo of a person with an angry face.",
+             "a photo of a person with a happy face."],
             # 2
-            ["surprised",
-             "angry"],
+            ["a photo of a person in surprise.",
+             "a photo of a person with an angry face."],
             # 3
-            ["sad",
-             "surprised"],
+            ["a photo of a person with a sad face.",
+             "a photo of a person in surprise."],
             # 4
-            ["fearful",
-             "sad"],
+            ["a photo of a person in fear.",
+             "a photo of a person with a sad face."],
             # 5
-            ["disgusted",
-             "fearful"],
+            ["a photo of a person with a disgusted face.",
+             "a photo of a person in fear."],
         ],
     'expressions':
         [

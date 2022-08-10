@@ -4,8 +4,6 @@ import os.path as osp
 import json
 import argparse
 import numpy as np
-import clip
-import torch
 import math
 from PIL import Image, ImageDraw
 from .config import SEMANTIC_DIPOLES_CORPORA
@@ -25,28 +23,26 @@ def create_exp_dir(args):
         args (argparse.Namespace): the namespace object returned by `parse_args()` for the current run
 
     """
-    exp_dir = "ContraCLIP_{}".format(args.gan)
+    exp_dir = 'ContraCLIP_{}'.format(args.gan)
+    exp_dir += '-{}'.format(args.vl_paths)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
         if args.stylegan_space == 'W+':
             exp_dir += "{}".format(args.stylegan_layer)
     else:
         exp_dir += '-Z'
-    exp_dir += "-K{}-D{}".format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
-    exp_dir += "-eps{}_{}".format(args.min_shift_magnitude, args.max_shift_magnitude)
+    exp_dir += '-K{}-D{}'.format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
+    exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
     exp_dir += '-beta-lss_{}'.format(args.beta_lss)
-    exp_dir += "-{}".format(args.loss)
-    if args.loss == "contrastive":
-        exp_dir += "_{}".format(args.temperature)
     exp_dir += '-beta-css_{}'.format(args.beta_css)
     if args.learn_css_gammas:
         exp_dir += "-learn_css_gammas"
     if args.id:
-        exp_dir += "+{}xID".format(args.lambda_id)
-    exp_dir += "-iter_{}".format(args.max_iter)
-    exp_dir += "-{}".format(args.corpus)
+        exp_dir += '+{}xID'.format(args.lambda_id)
+    exp_dir += '-iter_{}'.format(args.max_iter)
+    exp_dir += '-{}'.format(args.corpus)
     if args.exp_id:
-        exp_dir += "-{}".format(args.exp_id)
+        exp_dir += '-{}'.format(args.exp_id)
 
     # Create output directory (wip)
     wip_dir = osp.join("experiments", "wip", exp_dir)
@@ -61,23 +57,6 @@ def create_exp_dir(args):
         command_file.write(' '.join(sys.argv) + '\n')
 
     return exp_dir
-
-
-class PromptFeatures:
-    def __init__(self, prompt_corpus, clip_model, use_cuda):
-        self.prompt_corpus = prompt_corpus
-        self.use_cuda = use_cuda
-        self.clip_model = clip_model.to('cuda' if self.use_cuda else 'cpu')
-        self.num_prompts = len(self.prompt_corpus)
-        self.prompt_features_dim = 512
-
-    def get_prompt_features(self):
-        prompt_features = [
-            self.clip_model.encode_text(
-                clip.tokenize(self.prompt_corpus[t]).to('cuda' if self.use_cuda else 'cpu')).unsqueeze(0) for t in
-            range(len(self.prompt_corpus))
-        ]
-        return torch.cat(prompt_features, dim=0)
 
 
 class TrainingStatTracker(object):
