@@ -48,6 +48,7 @@ class CorpusSupportSets(nn.Module):
         ############################################################################################################
         # Define RBF loggammas
         self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
+        # REVIEW: Use the geodesic distance instead?
         for k in range(self.num_support_sets):
             gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / \
                 (self.semantic_dipoles_features[k, 1] - self.semantic_dipoles_features[k, 0]).norm() ** 2
