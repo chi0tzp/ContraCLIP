@@ -296,12 +296,20 @@ class Trainer(object):
             # where 1 indicates the i-th element of `target_support_sets_indices`
             support_sets_mask = torch.zeros([self.params.batch_size, latent_support_sets.num_support_sets])
             target_shift_signs = torch.zeros_like(target_shift_magnitudes)
+            prompt_mask = torch.zeros([self.params.batch_size, 2])
             for i, (index, val) in enumerate(zip(target_support_sets_indices, target_shift_magnitudes)):
                 support_sets_mask[i][index] += 1.0
-                target_shift_signs[i] = +1.0 if val >= 0 else -1.0
-
+                # target_shift_signs[i] = +1.0 if val >= 0 else -1.0
+                if val >= 0:
+                    prompt_mask[i, 0] = 1.0
+                    target_shift_signs[i] = 1.0
+                else:
+                    prompt_mask[i, 1] = 1.0
+                    target_shift_signs[i] = -1.0
+            prompt_mask = prompt_mask.unsqueeze(1)
             if self.use_cuda:
                 support_sets_mask = support_sets_mask.cuda()
+                prompt_mask = prompt_mask.cuda()
                 target_shift_signs = target_shift_signs.cuda()
 
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
@@ -380,7 +388,14 @@ class Trainer(object):
                 vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
 
             elif self.params.vl_paths == "geodesic":
-                raise NotImplementedError
+                # TODO: add comment
+                pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+                    -1, 2, corpus_support_sets.support_vectors_dim)
+                pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
+
+                # TODO: add comment
+                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                                                                   w=(pole_vectors - vl_img).float())
 
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
