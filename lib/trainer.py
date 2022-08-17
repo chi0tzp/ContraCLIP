@@ -44,6 +44,13 @@ class Trainer(object):
             with open(self.stats_json, 'w') as out:
                 json.dump({}, out)
 
+        # TODO: add comment
+        if self.params.learn_css_gammas:
+            self.gamma_css_json = osp.join(self.wip_dir, 'gamma_css.json')
+            if not osp.isfile(self.gamma_css_json):
+                with open(self.gamma_css_json, 'w') as out:
+                    json.dump({}, out)
+
         # Create models sub-directory
         self.models_dir = osp.join(self.wip_dir, 'models')
         os.makedirs(self.models_dir, exist_ok=True)
@@ -106,7 +113,7 @@ class Trainer(object):
 
         return starting_iter
 
-    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta):
+    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, loggamma):
         """Log progress (loss + ETA).
 
         Args:
@@ -114,6 +121,7 @@ class Trainer(object):
             mean_iter_time (float) : mean iteration time
             elapsed_time (float)   : elapsed time until current iteration
             eta (float)            : estimated time of experiment completion
+            loggamma ()            : TODO: +++
         """
         # Get current training stats (for the previous `self.params.log_freq` steps) and flush them
         stats = self.stat_tracker.get_means()
@@ -124,6 +132,14 @@ class Trainer(object):
         stats_dict.update({iteration: stats})
         with open(self.stats_json, 'w') as out:
             json.dump(stats_dict, out)
+
+        # TODO: add comment
+        if self.params.learn_css_gammas:
+            with open(self.gamma_css_json) as f:
+                gamma_css_dict = json.load(f)
+            gamma_css_dict.update({iteration: torch.exp(loggamma).detach().cpu().numpy().tolist()})
+            with open(self.gamma_css_json, 'w') as out:
+                json.dump(gamma_css_dict, out)
 
         # Flush training statistics tracker
         self.stat_tracker.flush()
@@ -413,16 +429,8 @@ class Trainer(object):
             # Update statistics tracker
             self.stat_tracker.update(loss=loss.item(), loss_id=loss_id)
 
-            # print("corpus_support_sets.LOGGAMMA")
-            # print(corpus_support_sets.LOGGAMMA)
-
             # Back-propagate
             loss.backward()
-
-            # print("-->")
-            # print("corpus_support_sets.LOGGAMMA")
-            # print(corpus_support_sets.LOGGAMMA)
-            # print('--------------------------')
 
             # Update weights
             clip_model.float()
@@ -445,7 +453,11 @@ class Trainer(object):
 
             # Log progress in stdout
             if iteration % self.params.log_freq == 0:
-                self.log_progress(iteration, mean_iter_time, elapsed_time, eta)
+                self.log_progress(iteration=iteration,
+                                  mean_iter_time=mean_iter_time,
+                                  elapsed_time=elapsed_time,
+                                  eta=eta,
+                                  loggamma=corpus_support_sets.LOGGAMMA)
 
             # Save checkpoint model file and latent support_sets model state dicts after current iteration
             if iteration % self.params.ckp_freq == 0:
