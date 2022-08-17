@@ -26,7 +26,7 @@ beta_lss=0.5                   # set the beta parameter for initialising the gam
 
 # === Training ======================================================================================================= #
 batch_size=6                   # Set training batch size (cannot be larger than the size of the given corpus)
-max_iter=30000                 # Set maximum number of training iterations
+max_iter=60000                 # Set maximum number of training iterations
 lr=1e-3                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 # ==================================================================================================================== #
 
