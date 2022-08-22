@@ -11,6 +11,7 @@ corpus="expressions6"          # Choose corpus of semantic dipoles from lib/conf
 vl_paths="non-geodesic"        # Choose type of VL paths ("non-geodesic" or "geodesic")
 
 # ==== Corpus Support Sets (CSS) ===================================================================================== #
+vl_model="farl"                # Choose Vision-Language model ("clip" or "farl")
 learn_css_gammas=true          # Optimise CSS RBFs' gammas
 id=true                        # Impose ID preservation using ArcFace
 lambda_id=10000                # ID preservation loss weighting parameter
@@ -46,6 +47,7 @@ python train.py --gan=${gan} \
                 --truncation=0.7 \
                 --stylegan-space=${stylegan_space} \
                 --stylegan-layer=${stylegan_layer} \
+                --vl-model=${vl_model} \
                 --corpus=${corpus} \
                 --vl-paths=${vl_paths} \
                 --beta-css=${beta_css} \
