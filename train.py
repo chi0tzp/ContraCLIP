@@ -1,8 +1,10 @@
 import argparse
+import os.path as osp
 import torch
 import clip
 from lib import *
-from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS
+from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS, \
+    FARL_PRETRAIN_MODEL
 from models.load_generator import load_generator
 
 
@@ -22,6 +24,7 @@ def main():
         --truncation                 : set GAN's sampling truncation parameter
 
         ===[ Corpus Support Sets (CSS) ]================================================================================
+        --vl-model                   : TODO
         --corpus                     : choose corpus of semantic dipoles (i.e., a set of pairs of contrasting sentences
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
@@ -68,6 +71,7 @@ def main():
     parser.add_argument('--truncation', type=float, help="latent code sampling truncation parameter")
 
     # === Corpus Support Sets (CSS) ================================================================================== #
+    parser.add_argument('--vl-model', type=str, default='clip', choices=('clip', 'farl'), help="Vision-Language model")
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
     parser.add_argument('--beta-css', type=float, default=0.5, help="CSS RBFs' beta param")
@@ -99,6 +103,10 @@ def main():
 
     # Parse given arguments
     args = parser.parse_args()
+
+    # Check given VL model
+    if args.vl_model == 'farl' and args.gan not in ('pggan_celebahq1024', 'stylegan2_ffhq1024'):
+        raise ValueError("Invalid VL model ({}) for the given GAN type ({})".format(args.vl_model, args.gan))
 
     # Check given batch size
     if args.batch_size > len(SEMANTIC_DIPOLES_CORPORA[args.corpus]):
@@ -149,6 +157,12 @@ def main():
     # Build pretrained CLIP model
     print("#. Build pretrained CLIP model...")
     clip_model, _ = clip.load("ViT-B/32", device='cuda' if use_cuda else 'cpu', jit=False)
+    # Load FaRL model
+    if args.vl_model == 'farl':
+        farl_model = osp.join('models', 'pretrained', 'farl', FARL_PRETRAIN_MODEL)
+        print("  \\__Loading FaRL model: {}".format(farl_model))
+        farl_state = torch.load(farl_model)
+        clip_model.load_state_dict(farl_state["state_dict"], strict=False)
     clip_model.float()
     clip_model.eval()
 

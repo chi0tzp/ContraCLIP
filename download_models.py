@@ -6,7 +6,7 @@ import hashlib
 import tarfile
 import time
 import urllib.request
-from lib import GENFORCE, GENFORCE_MODELS, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, \
+from lib import GENFORCE, GENFORCE_MODELS, FARL, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, \
     ContraCLIP_models, GAN_CLIP_FEATURES
 
 
@@ -163,6 +163,14 @@ def main():
         print("      \\__Already exists.")
     else:
         download(src=GAN_CLIP_FEATURES[0], sha256sum=GAN_CLIP_FEATURES[1], dest=pretrained_models_root)
+
+    print("#. Download pre-trained FaRL for Facial Representation Learning ...")
+    print("  \\__.FaRL")
+    if osp.exists(osp.join(pretrained_models_root, 'farl', 'FaRL-Base-Patch16-LAIONFace20M-ep16.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'farl', 'FaRL-Base-Patch16-LAIONFace20M-ep64.pth')):
+        print("      \\__Already exists.")
+    else:
+        download(src=FARL[0], sha256sum=FARL[1], dest=pretrained_models_root)
 
     # Download pre-trained ContraCLIP models
     # TODO: to appear soon

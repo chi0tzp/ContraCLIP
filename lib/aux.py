@@ -23,7 +23,7 @@ def create_exp_dir(args):
         args (argparse.Namespace): the namespace object returned by `parse_args()` for the current run
 
     """
-    exp_dir = 'ContraCLIP_{}'.format(args.gan)
+    exp_dir = 'Contra{}_{}'.format('FaRL'if args.vl_model == 'farl' else 'CLIP', args.gan)
     exp_dir += '-{}'.format(args.vl_paths)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
