@@ -156,9 +156,15 @@ def main():
 
     # Build pretrained CLIP model
     print("#. Build pretrained CLIP model...")
-    clip_model, _ = clip.load("ViT-B/32", device='cuda' if use_cuda else 'cpu', jit=False)
+
+    # Load CLIP model
+    if args.vl_model == 'clip':
+        clip_model, _ = clip.load("ViT-B/32", device='cuda' if use_cuda else 'cpu', jit=False)
     # Load FaRL model
-    if args.vl_model == 'farl':
+    elif args.vl_model == 'farl':
+        clip_model, _ = clip.load("ViT-B/16", device='cpu')
+        if use_cuda:
+            clip_model = clip_model.to('cuda')
         farl_model = osp.join('models', 'pretrained', 'farl', FARL_PRETRAIN_MODEL)
         print("  \\__Loading FaRL model: {}".format(farl_model))
         farl_state = torch.load(farl_model)
