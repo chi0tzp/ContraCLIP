@@ -29,17 +29,14 @@ def main():
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
                                        the given format
-        --beta-css                   : set the beta parameter for initialising the gamma parameters of the RBFs in the
-                                       CLIP Vision-Language space
-        --learn-css-gammas           : optimise CSS RBF gamma parameters
+        --gamma                      : initial gamma parameter of the RBFs' in the Vision-Language space
+        --learn-gammas               : optimise CSS RBF gamma parameters
         --vl-paths                   : type of paths in  the Vision-Language space ('geodesic', 'non-geodesic')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
-        --beta-lss                   : set the beta parameter for initialising the gamma parameters of the RBFs in the
-                                       GAN's latent space
         --id                         : impose ID preservation using ArcFace loss
         --lambda-id                  : ID loss weighting parameter
 
@@ -74,8 +71,8 @@ def main():
     parser.add_argument('--vl-model', type=str, default='clip', choices=('clip', 'farl'), help="Vision-Language model")
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--beta-css', type=float, default=0.5, help="CSS RBFs' beta param")
-    parser.add_argument('--learn-css-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
+    parser.add_argument('--gamma', type=float, default=1.0, help="CSS RBFs' (initial) gamma param")
+    parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
     parser.add_argument('--vl-paths', type=str, default='non-geodesic', choices=('geodesic', 'non-geodesic'),
                         help="TODO")
 
@@ -83,7 +80,6 @@ def main():
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
-    parser.add_argument('--beta-lss', type=float, default=0.5, help="LSS RBFs' beta param")
     parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
     parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
 
@@ -189,12 +185,13 @@ def main():
     print("  \\__Number of corpus support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(sd.dim))
-    print("  \\__RBF initial beta param           : {}".format(args.beta_css))
-    print("  \\__Learn RBF gammas                 : {}".format(args.learn_css_gammas))
+    print("  \\__RBFs' initial gamma param        : {}".format(args.gamma))
+    print("  \\__Learn RBF gammas                 : {}".format(args.learn_gammas))
     print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
-    CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features, beta=args.beta_css,
-                            learn_gammas=args.learn_css_gammas)
+    CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
+                            gamma=args.gamma,
+                            learn_gammas=args.learn_gammas)
 
     # Count number of trainable parameters
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
@@ -214,14 +211,12 @@ def main():
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
-    print("  \\__RBF initial beta param           : {}".format(args.beta_lss))
     print("  \\__Learning rate                    : {}".format(args.lr))
 
     LSS = LatentSupportSets(num_support_sets=sd.num_dipoles,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
                             jung_radius=jung_radius,
-                            beta=args.beta_lss,
                             tied_dipoles=False)
 
     # Count number of trainable parameters

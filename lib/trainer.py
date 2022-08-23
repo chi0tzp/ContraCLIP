@@ -6,7 +6,7 @@ import json
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
 from torchvision import transforms
 import numpy as np
 import time
@@ -45,7 +45,7 @@ class Trainer(object):
                 json.dump({}, out)
 
         # TODO: add comment
-        if self.params.learn_css_gammas:
+        if self.params.learn_gammas:
             self.gamma_css_json = osp.join(self.wip_dir, 'gamma_css.json')
             if not osp.isfile(self.gamma_css_json):
                 with open(self.gamma_css_json, 'w') as out:
@@ -134,7 +134,7 @@ class Trainer(object):
             json.dump(stats_dict, out)
 
         # TODO: add comment
-        if self.params.learn_css_gammas:
+        if self.params.learn_gammas:
             with open(self.gamma_css_json) as f:
                 gamma_css_dict = json.load(f)
             gamma_css_dict.update({iteration: torch.exp(loggamma).detach().cpu().numpy().tolist()})
@@ -191,7 +191,7 @@ class Trainer(object):
             latent_support_sets.cuda().train()
             if self.params.id:
                 id_loss.cuda().eval()
-            if self.params.learn_css_gammas:
+            if self.params.learn_gammas:
                 corpus_support_sets.cuda().train()
             else:
                 corpus_support_sets.cuda().eval()
@@ -201,19 +201,22 @@ class Trainer(object):
             latent_support_sets.train()
             if self.params.id:
                 id_loss.eval()
-            if self.params.learn_css_gammas:
+            if self.params.learn_gammas:
                 corpus_support_sets.train()
             else:
                 corpus_support_sets.eval()
 
         # Set up optimizer
         learnable_parameters = list(latent_support_sets.parameters())
-        if self.params.learn_css_gammas:
+        if self.params.learn_gammas:
             learnable_parameters += list(corpus_support_sets.parameters())
         optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
-        # Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
-        lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
+        # REVIEW: Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
+        # lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
+        lr_scheduler = MultiStepLR(optimizer=optimizer,
+                                   milestones=[int(0.2 * self.params.max_iter), int(0.8 * self.params.max_iter)],
+                                   gamma=0.1)
 
         # Get starting iteration
         starting_iter = self.get_starting_iteration(latent_support_sets, corpus_support_sets)
@@ -257,7 +260,7 @@ class Trainer(object):
             clip_model.zero_grad()
             if self.params.id:
                 id_loss.zero_grad()
-            if self.params.learn_css_gammas:
+            if self.params.learn_gammas:
                 corpus_support_sets.zero_grad()
 
             # Sample latent codes from standard Gaussian

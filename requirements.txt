@@ -13,3 +13,4 @@ requests
 ninja
 Tinkerer
 tk
+einops

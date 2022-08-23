@@ -3,18 +3,17 @@ from torch import nn
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, semantic_dipoles_features, beta, learn_gammas=False):
+    def __init__(self, semantic_dipoles_features, gamma=1.0, learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
             semantic_dipoles_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
-            beta (float)                             : set the beta parameter for initialising the gamma parameters of
-                                                       the RBFs in the CLIP Vision-Language space
+            gamma (float)                            : initial gamma parameters of the RBFs in the Vision-Language space
             learn_gammas (bool)                      : TODO: +++
         """
         super(CorpusSupportSets, self).__init__()
         self.semantic_dipoles_features = semantic_dipoles_features
-        self.beta = beta
+        self.gamma = gamma
         self.learn_gammas = learn_gammas
 
         ################################################################################################################
@@ -47,12 +46,14 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
-        # REVIEW: Use the geodesic distance instead?
-        for k in range(self.num_support_sets):
-            gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / \
-                (self.semantic_dipoles_features[k, 1] - self.semantic_dipoles_features[k, 0]).norm() ** 2
-            self.LOGGAMMA.data[k] = torch.log(gammas)
+        self.LOGGAMMA = nn.Parameter(data=torch.log(torch.scalar_tensor(self.gamma)) * torch.ones(self.num_support_sets, 2),
+                                     requires_grad=self.learn_gammas)
+
+        # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
+        # for k in range(self.num_support_sets):
+        #     gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / \
+        #         (self.semantic_dipoles_features[k, 1] - self.semantic_dipoles_features[k, 0]).norm() ** 2
+        #     self.LOGGAMMA.data[k] = torch.log(gammas)
 
     @staticmethod
     def orthogonal_projection(s, w):
