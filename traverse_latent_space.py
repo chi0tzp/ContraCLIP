@@ -2,8 +2,10 @@ import sys
 import argparse
 import os
 import os.path as osp
+import numpy as np
 import torch
 from torch import nn
+import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from PIL import Image, ImageDraw
 import json
@@ -184,6 +186,7 @@ def main():
     stylegan_space = args_json.__dict__["stylegan_space"]
     stylegan_layer = args_json.__dict__["stylegan_layer"] if "stylegan_layer" in args_json.__dict__ else None
     truncation = args_json.__dict__["truncation"]
+    learn_css_gammas = args_json.__dict__["learn_css_gammas"]
 
     # TODO: Check if `--w-space` is valid
     if args.w_space and (('stylegan' not in gan) or ('W' not in stylegan_space)):
@@ -289,6 +292,32 @@ def main():
     out_dir = osp.join(args.exp, 'results', args.pool + model_iter,
                        '{}_{}_{}'.format(2 * args.shift_steps, args.eps, round(2 * args.shift_steps * args.eps, 3)))
     os.makedirs(out_dir, exist_ok=True)
+
+    # TODO: add comment
+    if learn_css_gammas:
+        gamma_css_json_file = osp.join(args.exp, 'gamma_css.json')
+        with open(gamma_css_json_file, 'r') as f:
+            gamma_css_dict = json.load(f)
+        GAMMA_CSS = np.zeros((len(semantic_dipoles), 2, len(gamma_css_dict)))
+        i = 0
+        for k, v in gamma_css_dict.items():
+            for j in range(len(semantic_dipoles)):
+                GAMMA_CSS[j, 0, i] = v[j][0]
+                GAMMA_CSS[j, 1, i] = v[j][1]
+            i += 1
+
+        # TODO: add comment
+        gamma_figs_dir = osp.join(args.exp, 'results', 'vl_gammas')
+        os.makedirs(gamma_figs_dir,  exist_ok=True)
+        for j in range(len(semantic_dipoles)):
+            gammas_j_pos = GAMMA_CSS[j, 0, :]
+            gammas_j_neg = GAMMA_CSS[j, 1, :]
+            plt.plot(gammas_j_pos, label=semantic_dipoles[j][0])
+            plt.plot(gammas_j_neg, label=semantic_dipoles[j][1])
+            plt.legend(loc='upper right')
+            plt.savefig(fname=osp.join(gamma_figs_dir, 'gammas_dipole_{}.svg'.format(j)), dpi=300, pad_inches=0)
+            plt.savefig(fname=osp.join(gamma_figs_dir, 'gammas_dipole_{}.png'.format(j)), dpi=300, pad_inches=0)
+            plt.clf()
 
     # Set default batch size
     if args.batch_size is None:
