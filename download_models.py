@@ -7,7 +7,7 @@ import tarfile
 import time
 import urllib.request
 from lib import GENFORCE, GENFORCE_MODELS, FARL, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, \
-    ContraCLIP_models, GAN_CLIP_FEATURES
+    ContraCLIP_models, GAN_CLIP_FEATURES, FER
 
 
 def reporthook(count, block_size, total_size):
@@ -171,6 +171,19 @@ def main():
         print("      \\__Already exists.")
     else:
         download(src=FARL[0], sha256sum=FARL[1], dest=pretrained_models_root)
+
+    print("#. Download pretrained FER models...")
+    print("  \\__.FER")
+    if osp.exists(osp.join(pretrained_models_root, 'fer', 'HR18-AFLW.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'HR18-WFLW.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'affect8_best.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'affect_best.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'ir50.pth')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'mobilefacenet_model_best.pth.tar')) and \
+            osp.exists(osp.join(pretrained_models_root, 'fer', 'rafdb_best.pth')):
+        print("      \\__Already exists.")
+    else:
+        download(src=FER[0], sha256sum=FER[1], dest=pretrained_models_root)
 
     # Download pre-trained ContraCLIP models
     # TODO: to appear soon

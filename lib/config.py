@@ -50,11 +50,11 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with a sad face.",
              "a photo of a person in surprise."],
             # 4
-            ["a photo of a person in fear.",
+            ["a photo of a person with a fearful face.",
              "a photo of a person with a sad face."],
             # 5
             ["a photo of a person with a disgusted face.",
-             "a photo of a person in fear."],
+             "a photo of a person with a fearful face."],
         ],
     'expressions':
         [
@@ -270,6 +270,15 @@ AUDET = ('https://www.dropbox.com/s/jkkf1gda9o8ed47/au_detector.tar?dl=1',
 ########################################################################################################################
 CELEBA_ATTRIBUTES = ('https://www.dropbox.com/s/bxbegherkpvgbw9/celeba_attributes.tar?dl=1',
                      '45276f2df865112c7488fe128d8c79527da252aad30fc541417b9961dfdd9bbc')
+
+
+########################################################################################################################
+##                                                                                                                    ##
+##                                                     [ FER ]                                                        ##
+##                                                                                                                    ##
+########################################################################################################################
+FER = ('https://www.dropbox.com/s/1u6e7yvss56nx1n/fer.tar?dl=1',
+       '94b1f8c23dfc5e626c1de0e76257f174463b8f2c371670036ce75f0923d4985d')
 
 ########################################################################################################################
 ##                                                                                                                    ##
