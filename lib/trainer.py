@@ -213,10 +213,10 @@ class Trainer(object):
         optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
         # REVIEW: Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
-        # lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
-        lr_scheduler = MultiStepLR(optimizer=optimizer,
-                                   milestones=[int(0.2 * self.params.max_iter), int(0.8 * self.params.max_iter)],
-                                   gamma=0.1)
+        lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
+        # lr_scheduler = MultiStepLR(optimizer=optimizer,
+        #                            milestones=[int(0.2 * self.params.max_iter), int(0.8 * self.params.max_iter)],
+        #                            gamma=0.1)
 
         # Get starting iteration
         starting_iter = self.get_starting_iteration(latent_support_sets, corpus_support_sets)

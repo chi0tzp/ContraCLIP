@@ -35,6 +35,24 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with tanned skin.",
              "a photo of a person with pale skin."],
         ],
+    'expressions5':
+        [
+            # 0
+            ["a photo of a person in surprise.",
+             "a photo of a person with a neutral face."],
+            # 1
+            ["a photo of a person with a disgusted face.",
+             "a photo of a person with a neutral face."],
+            # 2
+            ["a photo of a person with a happy face.",
+             "a photo of a person with a neutral face."],
+            # 3
+            ["a photo of a person with a sad face.",
+             "a photo of a person with a neutral face."],
+            # 4
+            ["a photo of a person with an angry face.",
+             "a photo of a person with a neutral face."],
+        ],
     'expressions6':
         [
             # 0

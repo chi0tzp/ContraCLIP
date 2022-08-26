@@ -186,7 +186,7 @@ def main():
     stylegan_space = args_json.__dict__["stylegan_space"]
     stylegan_layer = args_json.__dict__["stylegan_layer"] if "stylegan_layer" in args_json.__dict__ else None
     truncation = args_json.__dict__["truncation"]
-    learn_css_gammas = args_json.__dict__["learn_css_gammas"]
+    learn_gammas = args_json.__dict__["learn_gammas"]
 
     # TODO: Check if `--w-space` is valid
     if args.w_space and (('stylegan' not in gan) or ('W' not in stylegan_space)):
@@ -294,7 +294,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     # TODO: add comment
-    if learn_css_gammas:
+    if learn_gammas:
         gamma_css_json_file = osp.join(args.exp, 'gamma_css.json')
         with open(gamma_css_json_file, 'r') as f:
             gamma_css_dict = json.load(f)

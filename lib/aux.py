@@ -35,7 +35,9 @@ def create_exp_dir(args):
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
     exp_dir += '-gamma_{}'.format(args.gamma)
     if args.learn_gammas:
-        exp_dir += "-learn_gammas"
+        exp_dir += "_learnable"
+    else:
+        exp_dir += "_fixed"
     if args.id:
         exp_dir += '+{}xID'.format(args.lambda_id)
     exp_dir += '-iter_{}'.format(args.max_iter)
