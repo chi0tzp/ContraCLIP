@@ -156,7 +156,7 @@ def main():
                                                        "images per path)")
     parser.add_argument('--img-size', type=int, help="set size of saved generated images (if not set, use the output "
                                                      "size of the respective GAN generator)")
-    parser.add_argument('--img-quality', type=int, default=50, help="set JPEG image quality")
+    parser.add_argument('--img-quality', type=int, default=95, help="set JPEG image quality")
 
     parser.add_argument('--strip', action='store_true', help="create traversal strip images")
     parser.add_argument('--strip-number', type=int, default=9, help="set number of images per strip")

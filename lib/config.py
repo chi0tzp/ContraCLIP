@@ -14,155 +14,32 @@ SEMANTIC_DIPOLES_CORPORA = {
     'attributes':
         [
             # 0
-            ["a photo of a female.",
-             "a photo of a male."],
-            # 1
             ["a photo of an old person.",
              "a photo of a young person."],
+            # 1
+            ["a photo of a female.",
+             "a photo of a male."],
             # 2
-            ["a photo of a person with blonde hair.",
-             "a photo of a person with black hair"],
-            # 3
-            ["a photo of a bald man.",
-             "a photo of a man with long hair."],
-            # 4
             ["a photo of a man with beard.",
              "a photo of a shaved man."],
-            # 5
+            # 3
             ["a photo of a face with makeup.",
              "a photo of a face without makeup."],
-            # 6
+            # 4
             ["a photo of a person with tanned skin.",
              "a photo of a person with pale skin."],
-        ],
-    'expressions5':
-        [
-            # 0
-            ["a photo of a person in surprise.",
-             "a photo of a person with a neutral face."],
-            # 1
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a neutral face."],
-            # 2
-            ["a photo of a person with a happy face.",
-             "a photo of a person with a neutral face."],
-            # 3
-            ["a photo of a person with a sad face.",
-             "a photo of a person with a neutral face."],
-            # 4
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a neutral face."],
-        ],
-    'expressions6':
-        [
-            # 0
-            ["a photo of a person with a happy face.",
-             "a photo of a person with a neutral face."],
-            # 1
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-            # 2
-            ["a photo of a person in surprise.",
-             "a photo of a person with an angry face."],
-            # 3
-            ["a photo of a person with a sad face.",
-             "a photo of a person in surprise."],
-            # 4
-            ["a photo of a person with a fearful face.",
-             "a photo of a person with a sad face."],
-            # 5
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a fearful face."],
         ],
     'expressions':
         [
             # 0
+            ["a photo of a person in surprise.",
+             "a photo of a person with a neutral face."],
+            # 1
+            ["a photo of a person with a disgusted face.",
+             "a photo of a person with an angry face."],
+            # 2
             ["a photo of a person with a happy face.",
-             "a photo of a person with a neutral face."],
-            # 1
-            ["a photo of a person with a sad face.",
-             "a photo of a person with a neutral face."],
-            # 2
-            ["a photo of a person with a fearful face.",
-             "a photo of a person with a neutral face."],
-            # 3
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a neutral face."],
-            # 4
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a neutral face."],
-            # 5
-            ["a photo of a person in surprise.",
-             "a photo of a person with a neutral face."],
-            # 6
-            ["a photo of a person with a sad face.",
-             "a photo of a person with a happy face."],
-            # 7
-            ["a photo of a person with a fearful face.",
-             "a photo of a person with a happy face."],
-            # 8
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a happy face."],
-            # 9
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-            # 10
-            ["a photo of a person in surprise.",
-             "a photo of a person with a happy face."],
-            # 11
-            ["a photo of a person with a fearful face.",
              "a photo of a person with a sad face."],
-            # 12
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a sad face."],
-            # 13
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a sad face."],
-            # 14
-            ["a photo of a person in surprise.",
-             "a photo of a person with a sad face."],
-            # 15
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a fearful face."],
-            # 16
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a fearful face."],
-            # 17
-            ["a photo of a person in surprise.",
-             "a photo of a person with a fearful face."],
-            # 18
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a disgusted face."],
-            # 19
-            ["a photo of a person in surprise.",
-             "a photo of a person with a disgusted face."],
-            # 20
-            ["a photo of a person in surprise.",
-             "a photo of a person with an angry face."],
-        ],
-    'expressions3':
-        [
-            # 0
-            ["a photo of a person with a happy face.",
-             "a photo of a person with an angry face."],
-            # 1
-            ["a photo of a person in surprise.",
-             "a photo of a person with an angry face."],
-            # 2
-            ["a photo of a person in surprise.",
-             "a photo of a person with a happy face."],
-        ],
-    'complex':
-        [
-            # 0
-            ["a photo of a man with a beard crying.",
-             "a photo of an angry shaved man."],
-            # 1
-            ["a photo of a man with a beard crying.",
-             "a photo of a happy shaved man."],
-            # 2
-            ["a photo of a man with a beard crying.",
-             "a photo of a shaved man with makeup."],
         ],
     'dogs':
         [
@@ -202,13 +79,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             # 2
             ["a photo of a modern car.",
              "a photo of a car from the sixties."],
-        ],
-    'dev':
-        [
-            ["a photo of a person with a happy face.",
-             "a photo of a person with an angry face."],
-            ["a photo of an old person.",
-             "a photo of a young person."],
         ]
 }
 
