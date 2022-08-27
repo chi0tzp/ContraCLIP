@@ -635,7 +635,7 @@ def main():
                 else:
                     # Calculate shift vector based on the given z-code
                     with torch.no_grad():
-                        shift = args.eps * LSS(support_sets_mask, latent_code)
+                        shift = -args.eps * LSS(support_sets_mask, latent_code)
                     # REVIEW:
                     current_path_latent_code = latent_code
                     current_path_latent_shift = shift
