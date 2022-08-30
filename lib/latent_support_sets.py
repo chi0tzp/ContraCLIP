@@ -42,8 +42,8 @@ class LatentSupportSets(nn.Module):
         ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
         ############################################################################################################
         # Choose r_min and r_max based on the Jung radius
-        self.r_min = 0.80 * self.jung_radius
-        self.r_max = 1.20 * self.jung_radius
+        self.r_min = 0.90 * self.jung_radius
+        self.r_max = 0.95 * self.jung_radius
         # self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
 
@@ -112,7 +112,7 @@ class LatentSupportSets(nn.Module):
                 loggammas = torch.log(gammas)
                 lg.extend(loggammas)
             self.LOGGAMMA.data[k] = torch.Tensor(lg)
-        
+
         # ---
         # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
         # for k in range(self.num_support_sets):

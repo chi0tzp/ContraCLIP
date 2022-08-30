@@ -12,14 +12,14 @@ vl_paths="non-geodesic"        # Choose type of VL paths ("non-geodesic" or "geo
 
 # ==== Corpus Support Sets (CSS) ===================================================================================== #
 id=true                        # Impose ID preservation using ArcFace
-lambda_id=1e5                  # ID preservation loss weighting parameter
+lambda_id=1e4                  # ID preservation loss weighting parameter
 gamma=1.0                      # Initialise the gamma parameters of the RBFs in the Vision-Language space
-learn_gammas=true              # Optimise CSS RBFs' gammas
+learn_gammas=false             # Optimise CSS RBFs' gammas
 
 # ==== Latent Support Sets (LSS) ===================================================================================== #
-num_latent_support_dipoles=3   # Set number of support dipoles per support set in the GAN's latent space
-min_shift_magnitude=1.2        # set minimum latent shift magnitude
-max_shift_magnitude=2.4        # set maximum latent shift magnitude
+num_latent_support_dipoles=32  # Set number of support dipoles per support set in the GAN's latent space
+min_shift_magnitude=0.1        # set minimum latent shift magnitude
+max_shift_magnitude=0.2        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=5                   # Set training batch size (cannot be larger than the size of the given corpus)
