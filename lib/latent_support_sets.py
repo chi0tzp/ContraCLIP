@@ -42,8 +42,8 @@ class LatentSupportSets(nn.Module):
         ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
         ############################################################################################################
         # Choose r_min and r_max based on the Jung radius
-        self.r_min = 0.90 * self.jung_radius
-        self.r_max = 0.95 * self.jung_radius
+        self.r_min = 0.80 * self.jung_radius
+        self.r_max = 1.20 * self.jung_radius
         # self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
 
@@ -81,7 +81,7 @@ class LatentSupportSets(nn.Module):
                     SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
                     SV_set.extend([SV, -SV])
                 SV_set = torch.cat(SV_set)
-                # SV_set = self.radii[k] * SV_set / torch.norm(SV_set, dim=1, keepdim=True)
+                SV_set = self.radii[k] * SV_set / torch.norm(SV_set, dim=1, keepdim=True)
                 SUPPORT_SETS_INIT[k, :] = SV_set
 
             # Reshape support sets tensor into a matrix and initialize support sets matrix
