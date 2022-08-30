@@ -106,12 +106,13 @@ class LatentSupportSets(nn.Module):
         # Define RBF loggammas
         self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2 * self.num_support_dipoles))
         for k in range(self.num_support_sets):
-            gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[k]) ** 2)
-            loggammas = torch.log(gammas)
             lg = []
-            for _ in range(self.num_support_dipoles):
+            for i in range(self.num_support_dipoles):
+                gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[i]) ** 2)
+                loggammas = torch.log(gammas)
                 lg.extend(loggammas)
             self.LOGGAMMA.data[k] = torch.Tensor(lg)
+        
         # ---
         # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 1))
         # for k in range(self.num_support_sets):
