@@ -44,8 +44,7 @@ class LatentSupportSets(nn.Module):
         # Choose r_min and r_max based on the Jung radius
         self.r_min = 0.80 * self.jung_radius
         self.r_max = 1.20 * self.jung_radius
-        # self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
-        self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
+        self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
 
         # Define Support Sets parameters and initialise
         if self.tied_dipoles:
@@ -57,13 +56,9 @@ class LatentSupportSets(nn.Module):
             self.SV_set = nn.Parameter(data=torch.randn(self.num_support_dipoles, self.support_vectors_dim))
             self.SV_set = self.SV_set / torch.norm(self.SV_set, dim=1, keepdim=True)
             for k in range(self.num_support_sets):
-                d = 0
                 for i in range(0, 2 * self.num_support_dipoles, 2):
-                    # SV = nn.Parameter(data=torch.randn(1, self.support_vectors_dim))
-                    # SV = SV / torch.norm(SV, dim=1, keepdim=True)
-                    SUPPORT_SETS_INIT_tied[k, i, :] = self.radii[k] * self.SV_set[d].clone()
-                    SUPPORT_SETS_INIT_tied[k, i + 1, :] = -self.radii[k] * self.SV_set[d].clone()
-                    d += 1
+                    SUPPORT_SETS_INIT_tied[k, i, :] = self.radii[k] * self.SV_set[k].clone()
+                    SUPPORT_SETS_INIT_tied[k, i + 1, :] = -self.radii[k] * self.SV_set[k].clone()
 
             # Reshape support sets tensor into a matrix and initialize support sets matrix
             self.SUPPORT_SETS_tied = SUPPORT_SETS_INIT_tied.reshape(
@@ -78,7 +73,6 @@ class LatentSupportSets(nn.Module):
                 SV_set = []
                 for i in range(self.num_support_dipoles):
                     SV = torch.randn(1, self.support_vectors_dim)
-                    SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
                     SV_set.extend([SV, -SV])
                 SV_set = torch.cat(SV_set)
                 SV_set = self.radii[k] * SV_set / torch.norm(SV_set, dim=1, keepdim=True)
@@ -108,7 +102,7 @@ class LatentSupportSets(nn.Module):
         for k in range(self.num_support_sets):
             lg = []
             for i in range(self.num_support_dipoles):
-                gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[i]) ** 2)
+                gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / ((2 * self.radii[k]) ** 2)
                 loggammas = torch.log(gammas)
                 lg.extend(loggammas)
             self.LOGGAMMA.data[k] = torch.Tensor(lg)
