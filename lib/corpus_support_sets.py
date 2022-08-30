@@ -93,8 +93,8 @@ class CorpusSupportSets(nn.Module):
         grad_f = -2 * (alphas_batch * gammas_batch *
                        torch.exp(-gammas_batch * (torch.norm(D, dim=2) ** 2).unsqueeze(dim=2)) * D).sum(dim=1)
 
+        # REVIEW: Normalize grad_f before projection?
         # TODO: add comment
-        grad_f = self.orthogonal_projection(s=z, w=grad_f)
+        grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))
 
-        # return grad_f
-        return grad_f / torch.norm(grad_f, dim=1, keepdim=True)
+        return grad_f
