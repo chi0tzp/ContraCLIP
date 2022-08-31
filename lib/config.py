@@ -20,6 +20,27 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with makeup.",
              "a photo of a person without makeup."]
         ],
+    'attributes-wo-id':
+        [
+            # 0
+            ["a photo of an old person.",
+             "a photo of a young person."],
+            # 1
+            ["a photo of a female.",
+             "a photo of a male."],
+        ],
+    'attributes-id':
+        [
+            # 0
+            ["a photo of a man with beard.",
+             "a photo of a shaved man."],
+            # 1
+            ["a photo of a bald man.",
+             "a photo of a man with long hair."],
+            # 2
+            ["a photo of a face with makeup.",
+             "a photo of a face without makeup."],
+        ],
     'attributes':
         [
             # 0
