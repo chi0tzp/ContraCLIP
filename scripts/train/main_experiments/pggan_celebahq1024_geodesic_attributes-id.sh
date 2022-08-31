@@ -10,7 +10,7 @@ vl_paths="geodesic"            # Choose type of VL paths ("non-geodesic" or "geo
 
 # ==== Corpus Support Sets (CSS) ===================================================================================== #
 id=true                        # Impose ID preservation using ArcFace
-lambda_id=1e3                  # ID preservation loss weighting parameter
+lambda_id=1e2                  # ID preservation loss weighting parameter
 gamma=1e-6                     # Initialise the gamma parameters of the RBFs in the Vision-Language space
 learn_gammas=false             # Optimise CSS RBFs' gammas
 
@@ -21,7 +21,7 @@ max_shift_magnitude=0.2        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=3                   # Set training batch size (cannot be larger than the size of the given corpus)
-max_iter=30000                 # Set maximum number of training iterations
+max_iter=80000                 # Set maximum number of training iterations
 lr=1e-3                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 # ==================================================================================================================== #
 
