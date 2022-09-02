@@ -9,6 +9,10 @@ from PIL import Image, ImageDraw
 from .config import SEMANTIC_DIPOLES_CORPORA
 
 
+def check_exp_settings(args):
+    raise NotImplementedError
+
+
 def create_exp_dir(args):
     """Create output directory for current experiment under experiments/wip/ and save given the arguments (json) and
     the given command (bash script).
@@ -41,6 +45,7 @@ def create_exp_dir(args):
             exp_dir += "_fixed"
     if args.id:
         exp_dir += '+{}xID'.format(args.lambda_id)
+    exp_dir += "-tau_{}".format(args.temperature)
     exp_dir += '-iter_{}'.format(args.max_iter)
     exp_dir += '-{}'.format(args.corpus)
     if args.exp_id:

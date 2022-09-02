@@ -75,6 +75,7 @@ def main():
     parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
     parser.add_argument('--vl-paths', type=str, default='non-geodesic', choices=('geodesic', 'non-geodesic'),
                         help="TODO")
+    parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")

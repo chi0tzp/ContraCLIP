@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
@@ -46,14 +47,11 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=torch.log(torch.scalar_tensor(self.gamma)) * torch.ones(self.num_support_sets, 2),
-                                     requires_grad=self.learn_gammas)
+        # self.LOGGAMMA = nn.Parameter(data=torch.log(torch.scalar_tensor(self.gamma)) * torch.ones(self.num_support_sets, 2),
+        #                              requires_grad=self.learn_gammas)
 
-        # self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
-        # for k in range(self.num_support_sets):
-        #     gammas = -torch.log(torch.Tensor([self.beta, self.beta])) / \
-        #         (self.semantic_dipoles_features[k, 1] - self.semantic_dipoles_features[k, 0]).norm() ** 2
-        #     self.LOGGAMMA.data[k] = torch.log(gammas)
+        self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma) * torch.ones(self.num_support_sets, 2),
+                                     requires_grad=self.learn_gammas)
 
     @staticmethod
     def orthogonal_projection(s, w):
@@ -96,5 +94,6 @@ class CorpusSupportSets(nn.Module):
         # REVIEW: Normalize grad_f before projection?
         # TODO: add comment
         grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))
+        # grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
-        return grad_f
+        return grad_f / torch.norm(grad_f, dim=1, keepdim=True)

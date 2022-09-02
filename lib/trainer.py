@@ -63,35 +63,26 @@ class Trainer(object):
         # Set up training statistics tracker
         self.stat_tracker = TrainingStatTracker()
 
-        # Define cosine similarity loss
-        self.cosine_embedding_loss = nn.CosineEmbeddingLoss(margin=0.5)
-
-        # Define cross entropy loss
-        self.cross_entropy_loss = nn.CrossEntropyLoss()
-
         # Define transform of CLIP image encoder
         self.clip_img_transform = transforms.Compose([transforms.Resize(224),
                                                       transforms.CenterCrop(224),
                                                       transforms.Normalize((0.48145466, 0.4578275, 0.40821073),
                                                                            (0.26862954, 0.26130258, 0.27577711))])
 
+        # Define cross entropy loss
+        self.cross_entropy_loss = nn.CrossEntropyLoss()
+
     def contrastive_loss(self, img_batch, txt_batch):
-        """
+        n_img, d_img = img_batch.shape
 
-        Args:
-            img_batch:
-            txt_batch:
-
-        Returns:
-
-        """
         # Normalise image and text batches
-        img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
-        txt_batch_l2 = F.normalize(txt_batch, p=2, dim=-1)
+        # img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
+        # txt_batch_l2 = F.normalize(txt_batch, p=2, dim=-1)
 
         # Calculate inner product similarity matrix
-        similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
-        labels = torch.arange(img_batch.shape[0])
+        # similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
+        similarity_matrix = torch.matmul(img_batch, txt_batch.T)
+        labels = torch.arange(n_img)
 
         return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
 
@@ -388,14 +379,17 @@ class Trainer(object):
             ############################################################################################################
             ##                                  [ Image features on the VL sphere ]                                   ##
             ############################################################################################################
-            # Get VL (CLIP) image features for the original and the manipulated (shifted) images and normalize them
+            # Get VL (CLIP) image features for the original and the manipulated (shifted) images
             vl_img_pairs = clip_model.encode_image(self.clip_img_transform(torch.cat([img, img_shifted], dim=0)))
             vl_img, vl_img_shifted = torch.split(vl_img_pairs, img.shape[0], dim=0)
+
+            # Normalise image features for the original and the manipulated (shifted) images
+            # (i.e., project of the VL sphere)
             vl_img = F.normalize(vl_img, p=2, dim=-1)
             vl_img_shifted = F.normalize(vl_img_shifted, p=2, dim=-1)
 
             # Get the orthogonal projection of the difference of the VL image features (manipulated minus original) onto
-            # the tangent space T_{vl_img}S^{n-1} and normalize it
+            # the tangent space T_{vl_img}S^{n-1} and normalise it
             vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                     w=(vl_img_shifted - vl_img).float())
             vl_img_diff = F.normalize(vl_img_diff, p=2)
@@ -419,9 +413,11 @@ class Trainer(object):
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
             ############################################################################################################
-            # Calculate cosine similarity loss
-            loss = self.cosine_embedding_loss(vl_img_diff, vl_txt,
-                                              torch.ones(vl_txt.shape[0]).to('cuda' if self.use_cuda else 'cpu'))
+            # Cosine similarity loss
+            # loss = 1.0 - torch.sum(vl_img_diff * vl_txt, dim=-1).mean()
+
+            # Contrastive loss
+            loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             # Calculate ID preserving loss (ArcFace) in the case of face-generating GAN (if self.params.id is set)
             loss_id = 0.0
