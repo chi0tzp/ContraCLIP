@@ -13,8 +13,8 @@ vl_paths="non-geodesic"        # Choose type of VL paths ("non-geodesic" or "geo
 # ==== Corpus Support Sets (CSS) ===================================================================================== #
 id=false                       # Impose ID preservation using ArcFace
 lambda_id=10000                # ID preservation loss weighting parameter
-gamma=1e-6                     # Initialise the gamma parameters of the RBFs in the Vision-Language space
-learn_gammas=false             # Optimise CSS RBFs' gammas
+gamma=1e0                      # Initialise the gamma parameters of the RBFs in the Vision-Language space
+learn_gammas=true              # Optimise CSS RBFs' gammas
 temperature=0.07               # Contrastive loss temperature
 
 # ==== Latent Support Sets (LSS) ===================================================================================== #
