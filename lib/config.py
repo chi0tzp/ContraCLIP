@@ -95,6 +95,21 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with an angry face.",
              "a photo of a person with a neutral face."]
         ],
+    'exp_pairs':
+        [
+            # 0
+            ["a photo of a person in surprise.",
+             "a photo of a person in fear."],
+            # 1
+            ["a photo of a person with a disgusted face.",
+             "a photo of a person with a happy face."],
+            # 2
+            ["a photo of a person with an angry face.",
+             "a photo of a person with a sad face."],
+            # 3
+            ["a photo of a person with a neutral face.",
+             "a photo of a person."]
+        ],
     'dogs':
         [
             # 0

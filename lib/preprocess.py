@@ -1,3 +1,4 @@
+import sys
 import torch
 import numpy as np
 import os.path as osp
@@ -38,14 +39,17 @@ class ExpPreprocess:
 
             if 'stylegan' in self.gan_type:
                 if self.stylegan_space == 'W+':
-                    lm = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]
+                    lm = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]['params']
+                    centre = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]['centre']
                 else:
-                    lm = jung_radii_dict[self.stylegan_space]
+                    lm = jung_radii_dict[self.stylegan_space]['params']
+                    centre = jung_radii_dict[self.stylegan_space]['centre']
                 jung_radius = lm[0] * self.truncation + lm[1]
             else:
-                jung_radius = jung_radii_dict['Z'][1]
+                jung_radius = jung_radii_dict['Z']['params'][1]
+                centre = jung_radii_dict['Z']['centre']
 
-            return jung_radius
+            return torch.tensor(centre), jung_radius
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -68,7 +72,10 @@ class ExpPreprocess:
                 # TODO: add comment
                 jung_radius = torch.cdist(zs, zs).max() * \
                     np.sqrt(self.gan_generator.dim_z / (2 * (self.gan_generator.dim_z + 1)))
-                self.jung_radii_dict['Z'] = (0.0, jung_radius.cpu().detach().item())
+
+                # Update dict
+                self.jung_radii_dict['Z']['params'] = (0.0, jung_radius.cpu().detach().item())
+                self.jung_radii_dict['Z']['centre'] = torch.mean(zs, dim=0).cpu().detach().numpy().tolist()
 
             ############################################################################################################
             ##                                       [ StyleGAN @ W-space ]                                           ##
@@ -84,16 +91,20 @@ class ExpPreprocess:
 
                 # TODO: add comment
                 data = []
+                centres = []
                 for truncation in np.linspace(0.1, 1.0, self.truncation_values):
                     with torch.no_grad():
                         ws = self.gan_generator.get_w(zs, truncation=truncation)[:, 0, :]
                     jung_radius = torch.cdist(ws, ws).max() * np.sqrt(ws.shape[1] / (2 * (ws.shape[1] + 1)))
+                    centres.append(torch.mean(ws, dim=0, keepdim=True))
                     data.append([truncation, jung_radius.cpu().detach().item()])
                 data = np.array(data)
+                centre_mean = torch.mean(torch.cat(centres, dim=0), dim=0)
 
                 lm = linear_model.LinearRegression()
                 lm.fit(data[:, 0].reshape(-1, 1), data[:, 1].reshape(-1, 1))
-                self.jung_radii_dict['W'] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
+                self.jung_radii_dict['W']['params'] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
+                self.jung_radii_dict['W']['centre'] = centre_mean.cpu().detach().numpy().tolist()
 
             ############################################################################################################
             ##                                       [ StyleGAN @ W+-space ]                                          ##
@@ -108,20 +119,26 @@ class ExpPreprocess:
 
                 # TODO: add comment
                 data = []
+                centres = []
                 for truncation in np.linspace(0.1, 1.0, self.truncation_values):
                     with torch.no_grad():
                         ws_plus = self.gan_generator.get_w(zs, truncation=truncation)[:, :self.stylegan_layer + 1, :]
                     ws_plus = ws_plus.reshape(ws_plus.shape[0], -1)
                     jung_radius = torch.cdist(ws_plus, ws_plus).max() * \
                         np.sqrt(ws_plus.shape[1] / (2 * (ws_plus.shape[1] + 1)))
+                    centres.append(torch.mean(ws_plus, dim=0, keepdim=True))
                     data.append([truncation, jung_radius.cpu().detach().item()])
                 data = np.array(data)
+                centre_mean = torch.mean(torch.cat(centres, dim=0), dim=0)
 
                 if self.verbose:
                     print("      \\__Fit linear model...")
                 lm = linear_model.LinearRegression()
                 lm.fit(data[:, 0].reshape(-1, 1), data[:, 1].reshape(-1, 1))
-                self.jung_radii_dict['W+'][self.stylegan_layer] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
+
+                # Update dict
+                self.jung_radii_dict['W+'][self.stylegan_layer]['params'] = (float(lm.coef_[0, 0]), float(lm.intercept_[0]))
+                self.jung_radii_dict['W+'][self.stylegan_layer]['centre'] = centre_mean.cpu().detach().numpy().tolist()
 
             ############################################################################################################
             ##                                        [ StyleGAN @ S-space ]                                          ##
@@ -201,7 +218,10 @@ class ExpPreprocess:
             # Calculate Jung radius
             jung_radius = torch.cdist(zs, zs).max() * \
                 np.sqrt(self.gan_generator.dim_z / (2 * (self.gan_generator.dim_z + 1)))
-            self.jung_radii_dict['Z'] = (0.0, jung_radius.cpu().detach().item())
+
+            # Update dict
+            self.jung_radii_dict['Z']['params'] = (0.0, jung_radius.cpu().detach().item())
+            self.jung_radii_dict['Z']['centre'] = torch.mean(zs, dim=0).cpu().detach().numpy().tolist()
 
         # Save jung radii file
         if self.verbose:
@@ -215,11 +235,14 @@ class ExpPreprocess:
 
         if 'stylegan' in self.gan_type:
             if self.stylegan_space == 'W+':
-                lm = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]
+                lm = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]['params']
+                centre = jung_radii_dict[self.stylegan_space]['{}'.format(self.stylegan_layer)]['centre']
             else:
-                lm = jung_radii_dict[self.stylegan_space]
+                lm = jung_radii_dict[self.stylegan_space]['params']
+                centre = jung_radii_dict[self.stylegan_space]['centre']
             jung_radius = lm[0] * self.truncation + lm[1]
         else:
-            jung_radius = jung_radii_dict['Z'][1]
+            jung_radius = jung_radii_dict['Z']['params'][1]
+            centre = jung_radii_dict['Z']['centre']
 
-        return jung_radius
+        return torch.tensor(centre), jung_radius

@@ -271,6 +271,7 @@ def main():
     LSS = LatentSupportSets(num_support_sets=len(semantic_dipoles),
                             num_support_dipoles=args_json.__dict__["num_latent_support_dipoles"],
                             support_vectors_dim=support_vectors_dim,
+                            latent_centre=torch.zeros(support_vectors_dim),
                             jung_radius=1)
 
     # Load pre-trained weights and set to evaluation mode

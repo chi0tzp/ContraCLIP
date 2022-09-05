@@ -27,8 +27,9 @@ def create_exp_dir(args):
         args (argparse.Namespace): the namespace object returned by `parse_args()` for the current run
 
     """
-    exp_dir = 'Contra{}_{}'.format('FaRL'if args.vl_model == 'farl' else 'CLIP', args.gan)
+    exp_dir = 'Contra{}'.format('FaRL'if args.vl_model == 'farl' else 'CLIP')
     exp_dir += '-{}'.format(args.vl_paths)
+    exp_dir += '-{}'.format(args.gan)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
         if args.stylegan_space == 'W+':
@@ -36,6 +37,8 @@ def create_exp_dir(args):
     else:
         exp_dir += '-Z'
     exp_dir += '-K{}-D{}'.format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
+    if args.tied:
+        exp_dir += '-tied'
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
     if args.vl_paths == 'non-geodesic':
         exp_dir += '-gamma_{}'.format(args.gamma)
@@ -44,6 +47,7 @@ def create_exp_dir(args):
         else:
             exp_dir += "_fixed"
     if args.id:
+        # exp_dir += '+{:.0E}xID'.format(args.lambda_id)
         exp_dir += '+{}xID'.format(args.lambda_id)
     exp_dir += "-tau_{}".format(args.temperature)
     exp_dir += '-iter_{}'.format(args.max_iter)

@@ -34,6 +34,7 @@ def main():
         --vl-paths                   : type of paths in  the Vision-Language space ('geodesic', 'non-geodesic')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
+        --tied                       : set support set dipoles in tied mode
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
@@ -78,6 +79,7 @@ def main():
     parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
 
     # === Latent Support Sets (LSS) ================================================================================== #
+    parser.add_argument('--tied', action='store_true', help="set support set dipoles in tied mode")
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
@@ -179,7 +181,7 @@ def main():
                                      use_cuda=use_cuda, verbose=True)
 
     # Calculate Jung radius for given latent space
-    jung_radius = exp_preprocessor.calculate_jung_radius()
+    latent_centre, jung_radius = exp_preprocessor.calculate_jung_radius()
 
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
@@ -212,17 +214,22 @@ def main():
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
     print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
     print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
+    print("  \\__Latent centre norm               : {:.2f}".format(latent_centre.norm()))
     print("  \\__Learning rate                    : {}".format(args.lr))
 
     LSS = LatentSupportSets(num_support_sets=sd.num_dipoles,
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
+                            latent_centre=latent_centre,
                             jung_radius=jung_radius,
-                            tied_dipoles=False)
+                            tied_dipoles=args.tied)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
+
+    # import sys
+    # sys.exit()
 
     # Build ID loss (ArcFace)
     if args.id:
