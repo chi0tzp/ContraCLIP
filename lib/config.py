@@ -23,12 +23,39 @@ SEMANTIC_DIPOLES_CORPORA = {
     'attributes':
         [
             # 0
-            ["a photo of an old person.",
-             "a photo of a young person."],
+            [
+                "a photo of an old person.",
+                "a photo of a young person."
+            ],
             # 1
-            ["a photo of a female.",
-             "a photo of a male."],
+            [
+                "a photo of a female.",
+                "a photo of a male."
+            ],
+            # 2
+            [
+                "a photo of a face with dark skin color.",
+                "a photo of a face with light skin color."
+            ],
+            # 3
+            [
+                "",
+                ""
+            ],
+            # 4
+            [
+                "",
+                ""
+            ],
+            # 5
+            [
+                "",
+                ""
+            ],
+
+
         ],
+
     'attributes-id':
         [
             # 0
