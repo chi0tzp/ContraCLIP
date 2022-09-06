@@ -75,8 +75,8 @@ def main():
                         help="choose corpus of semantic dipoles")
     parser.add_argument('--gamma', type=float, default=1.0, help="CSS RBFs' (initial) gamma param")
     parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
-    parser.add_argument('--vl-paths', type=str, default='non-geodesic', choices=('geodesic', 'non-geodesic'),
-                        help="TODO")
+    parser.add_argument('--vl-paths', type=str, default='non-geodesic',
+                        choices=('geodesic', 'bi-geodesic', 'non-geodesic'), help="TODO")
     parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
 
     # === Latent Support Sets (LSS) ================================================================================== #
