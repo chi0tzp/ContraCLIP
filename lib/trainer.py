@@ -395,12 +395,15 @@ class Trainer(object):
             vl_img_diff = F.normalize(vl_img_diff, p=2)
 
             ############################################################################################################
-            ##                           [ TODO: +++ ]                            ##
+            ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
             ############################################################################################################
             if self.params.vl_paths == "non-geodesic":
                 vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
 
-            elif self.params.vl_paths == "geodesic":
+            ############################################################################################################
+            ##                                  [ Bi-geodesic VL supervisory paths ]                                  ##
+            ############################################################################################################
+            elif self.params.vl_paths == "bi-geodesic":
                 # TODO: add comment
                 pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
                     -1, 2, corpus_support_sets.support_vectors_dim)
@@ -411,11 +414,23 @@ class Trainer(object):
                                                                    w=(pole_vectors - vl_img).float())
 
             ############################################################################################################
+            ##                                    [ Geodesic VL supervisory paths ]                                   ##
+            ############################################################################################################
+            elif self.params.vl_paths == "geodesic":
+                # TODO: add comment
+                corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+                    -1, 2, corpus_support_sets.support_vectors_dim)
+
+                corpus_text_features_batch = target_shift_signs.reshape(-1, 1) * \
+                    (corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :])
+
+                # TODO: add comment
+                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                                                                   w=corpus_text_features_batch)
+
+            ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
             ############################################################################################################
-            # Cosine similarity loss
-            # loss = 1.0 - torch.sum(vl_img_diff * vl_txt, dim=-1).mean()
-
             # Contrastive loss
             loss = self.contrastive_loss(vl_img_diff, vl_txt)
 

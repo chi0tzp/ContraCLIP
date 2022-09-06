@@ -47,9 +47,6 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        # self.LOGGAMMA = nn.Parameter(data=torch.log(torch.scalar_tensor(self.gamma)) * torch.ones(self.num_support_sets, 2),
-        #                              requires_grad=self.learn_gammas)
-
         self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma) * torch.ones(self.num_support_sets, 2),
                                      requires_grad=self.learn_gammas)
 
@@ -91,9 +88,7 @@ class CorpusSupportSets(nn.Module):
         grad_f = -2 * (alphas_batch * gammas_batch *
                        torch.exp(-gammas_batch * (torch.norm(D, dim=2) ** 2).unsqueeze(dim=2)) * D).sum(dim=1)
 
-        # REVIEW: Normalize grad_f before projection?
         # TODO: add comment
         grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))
-        # grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
         return grad_f / torch.norm(grad_f, dim=1, keepdim=True)

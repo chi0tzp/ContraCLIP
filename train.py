@@ -31,7 +31,8 @@ def main():
                                        the given format
         --gamma                      : initial gamma parameter of the RBFs' in the Vision-Language space
         --learn-gammas               : optimise CSS RBF gamma parameters
-        --vl-paths                   : type of paths in  the Vision-Language space ('geodesic', 'non-geodesic')
+        --vl-paths                   : type of paths in the Vision-Language space ('geodesic', 'bi-geodesic'
+                                       'non-geodesic')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --tied                       : set support set dipoles in tied mode
