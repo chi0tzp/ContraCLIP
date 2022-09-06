@@ -20,6 +20,18 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with an angry face.",
              "a photo of a person with a happy face."],
         ],
+    'dev2':
+        [
+            # 0
+            ["a photo of a person with a surprised face.",
+             "a photo of a person with a disgusted face."],
+            # 1
+            ["a photo of a person with an angry face.",
+             "a photo of a person with a happy face."],
+            # 2
+            ["a photo of a person with a disgusted face.",
+             "a photo of a face in neutral expression."]
+        ],
     'attributes':
         [
             # 0

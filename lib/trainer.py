@@ -412,6 +412,8 @@ class Trainer(object):
                 # TODO: add comment
                 vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                    w=(pole_vectors - vl_img).float())
+                # REVIEW
+                vl_txt = F.normalize(vl_txt, p=2)
 
             ############################################################################################################
             ##                                    [ Geodesic VL supervisory paths ]                                   ##
@@ -427,6 +429,8 @@ class Trainer(object):
                 # TODO: add comment
                 vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                    w=corpus_text_features_batch)
+                # REVIEW
+                vl_txt = F.normalize(vl_txt, p=2)
 
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
