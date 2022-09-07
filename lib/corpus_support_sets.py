@@ -1,21 +1,30 @@
+import sys
 import torch
 from torch import nn
 import numpy as np
+import os.path as osp
+import json
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, semantic_dipoles_features, gamma=1.0, learn_gammas=False):
+    def __init__(self, semantic_dipoles_features, gammas, learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
             semantic_dipoles_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
-            gamma (float)                            : initial gamma parameters of the RBFs in the Vision-Language space
+            gammas (str)                             : TODO: +++
             learn_gammas (bool)                      : TODO: +++
         """
         super(CorpusSupportSets, self).__init__()
         self.semantic_dipoles_features = semantic_dipoles_features
-        self.gamma = gamma
         self.learn_gammas = learn_gammas
+
+        if osp.isfile(gammas):
+            self.gammas = gammas
+            with open(self.gammas, 'r') as f:
+                gammas_dict = json.load(f)
+        else:
+            raise FileNotFoundError("Gammas file not found!")
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -47,8 +56,9 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma) * torch.ones(self.num_support_sets, 2),
-                                     requires_grad=self.learn_gammas)
+        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
+        for k in range(self.num_support_sets):
+            self.LOGGAMMA.data[k] = torch.tensor(np.log(gammas_dict['{}'.format(k)]))
 
     @staticmethod
     def orthogonal_projection(s, w):
@@ -91,4 +101,5 @@ class CorpusSupportSets(nn.Module):
         # TODO: add comment
         grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
-        return grad_f / torch.norm(grad_f, dim=1, keepdim=True)
+        # return grad_f / torch.norm(grad_f, dim=1, keepdim=True)
+        return grad_f

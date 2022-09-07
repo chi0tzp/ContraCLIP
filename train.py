@@ -29,7 +29,7 @@ def main():
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
                                        the given format
-        --gamma                      : initial gamma parameter of the RBFs' in the Vision-Language space
+        REVIEW :--gammas                      : initial gamma parameter of the RBFs' in the Vision-Language space
         --learn-gammas               : optimise CSS RBF gamma parameters
         --vl-paths                   : type of paths in the Vision-Language space ('geodesic', 'bi-geodesic'
                                        'non-geodesic')
@@ -73,7 +73,7 @@ def main():
     parser.add_argument('--vl-model', type=str, default='clip', choices=('clip', 'farl'), help="Vision-Language model")
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--gamma', type=float, default=1.0, help="CSS RBFs' (initial) gamma param")
+    parser.add_argument('--gammas', type=str, help="TODO")
     parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
     parser.add_argument('--vl-paths', type=str, default='non-geodesic',
                         choices=('geodesic', 'bi-geodesic', 'non-geodesic'), help="TODO")
@@ -189,12 +189,12 @@ def main():
     print("  \\__Number of corpus support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(sd.dim))
-    print("  \\__RBFs' initial gamma param        : {}".format(args.gamma))
+    print("  \\__RBFs' initial gamma param        : {}".format(args.gammas))
     print("  \\__Learn RBF gammas                 : {}".format(args.learn_gammas))
     print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
     CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
-                            gamma=args.gamma,
+                            gammas=args.gammas,
                             learn_gammas=args.learn_gammas)
 
     # Count number of trainable parameters

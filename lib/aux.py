@@ -41,11 +41,10 @@ def create_exp_dir(args):
         exp_dir += '-tied'
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
     if args.vl_paths == 'non-geodesic':
-        exp_dir += '-gamma_{}'.format(args.gamma)
         if args.learn_gammas:
-            exp_dir += "_learnable"
+            exp_dir += "-gammas_learnable_{}".format(osp.splitext(osp.basename(args.gammas))[0])
         else:
-            exp_dir += "_fixed"
+            exp_dir += "-gammas_fixed_{}".format(osp.splitext(osp.basename(args.gammas))[0])
     if args.id:
         # exp_dir += '+{:.0E}xID'.format(args.lambda_id)
         exp_dir += '+{}xID'.format(args.lambda_id)

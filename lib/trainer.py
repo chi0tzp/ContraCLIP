@@ -76,12 +76,12 @@ class Trainer(object):
         n_img, d_img = img_batch.shape
 
         # Normalise image and text batches
-        # img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
-        # txt_batch_l2 = F.normalize(txt_batch, p=2, dim=-1)
+        img_batch_l2 = F.normalize(img_batch, p=2, dim=-1)
+        txt_batch_l2 = F.normalize(txt_batch, p=2, dim=-1)
 
         # Calculate inner product similarity matrix
-        # similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
-        similarity_matrix = torch.matmul(img_batch, txt_batch.T)
+        similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
+        # similarity_matrix = torch.matmul(img_batch, txt_batch.T)
         labels = torch.arange(n_img)
 
         return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
@@ -392,7 +392,52 @@ class Trainer(object):
             # the tangent space T_{vl_img}S^{n-1} and normalise it
             vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                     w=(vl_img_shifted - vl_img).float())
-            vl_img_diff = F.normalize(vl_img_diff, p=2)
+            # vl_img_diff = F.normalize(vl_img_diff, p=2)
+
+            # *********
+            # DEBUGGING
+            # *********
+            # pass
+            # # === Non-geodesic ===
+            # vl_txt_non_geodesic = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
+            #
+            # # === Bi-geodesic ===
+            # pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+            #     -1, 2, corpus_support_sets.support_vectors_dim)
+            # pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
+            # vl_txt_bi_geodesic = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+            #                                                                w=(pole_vectors - vl_img).float())
+            # vl_txt_bi_geodesic = F.normalize(vl_txt_bi_geodesic, p=2)
+            #
+            # # === Geodesic ===
+            # corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+            #     -1, 2, corpus_support_sets.support_vectors_dim)
+            # corpus_text_features_batch = target_shift_signs.reshape(-1, 1) * \
+            #                              (corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :])
+            #
+            # # TODO: add comment
+            # vl_txt_geodesic = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=corpus_text_features_batch)
+            # # REVIEW
+            # vl_txt_geodesic = F.normalize(vl_txt_geodesic, p=2)
+            #
+            # # print("vl_txt_non_geodesic : {}".format(vl_txt_non_geodesic))
+            # # print("vl_txt_bi_geodesic  : {}".format(vl_txt_bi_geodesic))
+            # # print("vl_txt_geodesic     : {}".format(vl_txt_geodesic))
+            #
+            # print("vl_txt_non_geodesic VS vl_txt_geodesic")
+            # U = vl_txt_non_geodesic
+            # V = vl_txt_geodesic
+            # dot_products = (U * V).sum(axis=-1)
+            # print(dot_products)
+            # print('---')
+            #
+            # # print("vl_txt_non_geodesic VS vl_txt_bi_geodesic")
+            # # similarity_matrix = torch.matmul(vl_txt_non_geodesic, vl_txt_bi_geodesic.T)
+            # # print(similarity_matrix)
+            # # print('---')
+            #
+            # input("__>")
+            # pass
 
             ############################################################################################################
             ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
