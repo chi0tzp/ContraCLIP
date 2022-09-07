@@ -1,0 +1,9 @@
+'dev2':
+[
+    # 0
+    ["a photo of a person with a surprised face.",
+     "a photo of a person in fear."],
+    # 1
+    ["a photo of a person with an angry face.",
+     "a photo of a person with a happy face."],
+]
