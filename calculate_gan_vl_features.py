@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     # Create output directory
-    out_dir = osp.join('experiments', 'gan_clip_features')
+    out_dir = osp.join('experiments', 'gan_vl_features')
     os.makedirs(out_dir, exist_ok=True)
 
     # CUDA
@@ -61,9 +61,6 @@ def main():
 
     gan_cnt = 0
     for gan in GENFORCE_MODELS.keys():
-
-        # if gan != 'stylegan2_ffhq256':
-        #     continue
 
         gan_cnt += 1
         print("#. GAN: {} [{}/{}]".format(gan, gan_cnt, len(GENFORCE_MODELS.keys())))
