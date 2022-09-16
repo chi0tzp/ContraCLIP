@@ -266,7 +266,7 @@ class Trainer(object):
                 corpus_support_sets.zero_grad()
 
             # Sample latent codes from standard Gaussian
-            z = torch.randn(self.params.batch_size, generator.dim_z)
+            z = torch.randn(1, generator.dim_z)
             if self.use_cuda:
                 z = z.cuda()
 
@@ -282,6 +282,7 @@ class Trainer(object):
                 elif self.params.stylegan_space == 'S':
                     latent_code = generator.get_s(generator.get_w(z, truncation=self.params.truncation))
             img = generator(latent_code)
+            img = img.repeat(self.params.batch_size, 1, 1, 1)
 
             ############################################################################################################
             ##                                   [ Calculate latent shift vectors ]                                   ##
