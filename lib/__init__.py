@@ -16,3 +16,4 @@ from .evaluation.celeba_attributes.celeba_attr_predictor import celeba_attr_pred
 from .evaluation.au_detector.AU_detector import AUdetector
 from .evaluation.fer.emotion_hyp import pyramid_trans_expr
 from .evaluation.fer.utils import load_fer_pretrained_weights
+from .vmf import vMFGradient, MixvMFModel, vMF, MixvMF, vMFLogPartition, MixvMFGrad

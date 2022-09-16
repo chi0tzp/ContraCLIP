@@ -72,6 +72,9 @@ class Trainer(object):
         # Define cross entropy loss
         self.cross_entropy_loss = nn.CrossEntropyLoss()
 
+        # Define cosine similarity loss
+        self.cosine_embedding_loss = nn.CosineEmbeddingLoss()
+
     def contrastive_loss(self, img_batch, txt_batch):
         n_img, d_img = img_batch.shape
 
@@ -81,10 +84,10 @@ class Trainer(object):
 
         # Calculate inner product similarity matrix
         similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
-        # similarity_matrix = torch.matmul(img_batch, txt_batch.T)
         labels = torch.arange(n_img)
 
-        return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
+        return 0.5 * (self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels) +
+                      self.cross_entropy_loss(similarity_matrix.T / self.params.temperature, labels))
 
     def get_starting_iteration(self, latent_support_sets, corpus_support_sets):
         """Check if checkpoint file exists (under `self.models_dir`) and set starting iteration at the checkpoint
@@ -140,20 +143,25 @@ class Trainer(object):
         if iteration < self.params.max_iter - 1:
             print()
         print("         ===================================================================")
-        print("      \\__Loss           : {:.08f}".format(stats['loss']))
+        print("      \\__Loss    : {:.04f} (tau={:.02f})".format(stats['loss'], self.params.temperature))
+        if self.params.learn_gammas:
+            print("      \\__Loss X  : {:.04f} (lambda={:.02f})".format(stats['loss_x'], self.params.lambda_x))
         if self.params.id:
-            print("      \\__Loss ID        : {:.08f}".format(stats['loss_id']))
+            print("      \\__Loss ID : {:.04f} (lambda={:.02f})".format(stats['loss_id'], self.params.lambda_id))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
-        if self.params.id:
-            update_stdout(9)
-        else:
-            update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None):
+        cnt = 0
+        if self.params.id:
+            cnt += 1
+        if self.params.learn_gammas:
+            cnt += 1
+        update_stdout(8 + cnt)
+
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None, vmf_grad=None):
         """ContraCLIP training function.
 
         Args:
@@ -164,6 +172,7 @@ class Trainer(object):
             clip_model          : non-trainable (pre-trained) CLIP model
             id_loss             : if `self.params.id` is set, gamma parameters of corpus_support_sets
                                   (CSS) will be optimised during training under an additional ID preserving criterion
+            vmf_grad            : TODO: +++
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
         torch.save(latent_support_sets.state_dict(), osp.join(self.models_dir, 'latent_support_sets_init.pt'))
@@ -184,6 +193,7 @@ class Trainer(object):
                 id_loss.cuda().eval()
             if self.params.learn_gammas:
                 corpus_support_sets.cuda().train()
+                # vmf_grad.cuda().eval()
             else:
                 corpus_support_sets.cuda().eval()
         else:
@@ -194,6 +204,7 @@ class Trainer(object):
                 id_loss.eval()
             if self.params.learn_gammas:
                 corpus_support_sets.train()
+                # vmf_grad.eval()
             else:
                 corpus_support_sets.eval()
 
@@ -204,10 +215,10 @@ class Trainer(object):
         optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
 
         # REVIEW: Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
-        lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
-        # lr_scheduler = MultiStepLR(optimizer=optimizer,
-        #                            milestones=[int(0.2 * self.params.max_iter), int(0.8 * self.params.max_iter)],
-        #                            gamma=0.1)
+        # lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
+        lr_scheduler = MultiStepLR(optimizer=optimizer,
+                                   milestones=[int(0.7 * self.params.max_iter), int(0.85 * self.params.max_iter)],
+                                   gamma=0.1)
 
         # Get starting iteration
         starting_iter = self.get_starting_iteration(latent_support_sets, corpus_support_sets)
@@ -392,52 +403,6 @@ class Trainer(object):
             # the tangent space T_{vl_img}S^{n-1} and normalise it
             vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                     w=(vl_img_shifted - vl_img).float())
-            # vl_img_diff = F.normalize(vl_img_diff, p=2)
-
-            # *********
-            # DEBUGGING
-            # *********
-            # pass
-            # # === Non-geodesic ===
-            # vl_txt_non_geodesic = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
-            #
-            # # === Bi-geodesic ===
-            # pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-            #     -1, 2, corpus_support_sets.support_vectors_dim)
-            # pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
-            # vl_txt_bi_geodesic = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-            #                                                                w=(pole_vectors - vl_img).float())
-            # vl_txt_bi_geodesic = F.normalize(vl_txt_bi_geodesic, p=2)
-            #
-            # # === Geodesic ===
-            # corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-            #     -1, 2, corpus_support_sets.support_vectors_dim)
-            # corpus_text_features_batch = target_shift_signs.reshape(-1, 1) * \
-            #                              (corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :])
-            #
-            # # TODO: add comment
-            # vl_txt_geodesic = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=corpus_text_features_batch)
-            # # REVIEW
-            # vl_txt_geodesic = F.normalize(vl_txt_geodesic, p=2)
-            #
-            # # print("vl_txt_non_geodesic : {}".format(vl_txt_non_geodesic))
-            # # print("vl_txt_bi_geodesic  : {}".format(vl_txt_bi_geodesic))
-            # # print("vl_txt_geodesic     : {}".format(vl_txt_geodesic))
-            #
-            # print("vl_txt_non_geodesic VS vl_txt_geodesic")
-            # U = vl_txt_non_geodesic
-            # V = vl_txt_geodesic
-            # dot_products = (U * V).sum(axis=-1)
-            # print(dot_products)
-            # print('---')
-            #
-            # # print("vl_txt_non_geodesic VS vl_txt_bi_geodesic")
-            # # similarity_matrix = torch.matmul(vl_txt_non_geodesic, vl_txt_bi_geodesic.T)
-            # # print(similarity_matrix)
-            # # print('---')
-            #
-            # input("__>")
-            # pass
 
             ############################################################################################################
             ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
@@ -489,8 +454,18 @@ class Trainer(object):
                 loss_id = self.params.lambda_id * id_loss(y_hat=img_shifted, y=img)
                 loss += loss_id
 
+            # TODO: add comment
+            loss_x = 0.0
+            if self.params.learn_gammas:
+                # vmf_direction = vmf_grad(vl_img.float())
+                vl_img_shifted_prime = corpus_support_sets.exponential_map(s=vl_img.float(), u=(vl_img + vl_txt).float())
+                loss_x = self.params.lambda_x * self.cosine_embedding_loss(vl_img_shifted_prime, vl_img_shifted,
+                                                                           torch.ones(vl_img_shifted.shape[0]).to(
+                                                                               'cuda' if self.use_cuda else 'cpu'))
+                loss += loss_x
+
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id)
+            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id, loss_x=loss_x)
 
             # Back-propagate
             loss.backward()

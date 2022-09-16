@@ -2,29 +2,24 @@ import sys
 import torch
 from torch import nn
 import numpy as np
-import os.path as osp
-import json
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, semantic_dipoles_features, gammas, learn_gammas=False):
+    def __init__(self, semantic_dipoles_features, gammas, gamma_0=1.0, learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
             semantic_dipoles_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
             gammas (str)                             : TODO: +++
+            gamma_0 (float)                          : TODO: +++
             learn_gammas (bool)                      : TODO: +++
+
         """
         super(CorpusSupportSets, self).__init__()
         self.semantic_dipoles_features = semantic_dipoles_features
+        self.gammas = gammas
+        self.gamma_0 = gamma_0
         self.learn_gammas = learn_gammas
-
-        if osp.isfile(gammas):
-            self.gammas = gammas
-            with open(self.gammas, 'r') as f:
-                gammas_dict = json.load(f)
-        else:
-            raise FileNotFoundError("Gammas file not found!")
 
         ################################################################################################################
         ##                                                                                                            ##
@@ -56,9 +51,19 @@ class CorpusSupportSets(nn.Module):
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
         # Define RBF loggammas
-        self.LOGGAMMA = nn.Parameter(data=torch.ones(self.num_support_sets, 2), requires_grad=self.learn_gammas)
-        for k in range(self.num_support_sets):
-            self.LOGGAMMA.data[k] = torch.tensor(np.log(gammas_dict['{}'.format(k)]))
+        if self.gammas == 'spherical':
+            self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma_0) * torch.ones(self.num_support_sets, 2),
+                                         requires_grad=self.learn_gammas)
+            # === DBG ===
+            # self.LOGGAMMA.data[0, 0] = torch.scalar_tensor(np.log(10.0))
+            # self.LOGGAMMA.data[0, 1] = torch.scalar_tensor(np.log(1.0))
+            # self.LOGGAMMA.data[1, 0] = torch.scalar_tensor(np.log(1.0))
+            # self.LOGGAMMA.data[1, 1] = torch.scalar_tensor(np.log(2.0))
+
+        elif self.gammas == 'diag':
+            self.LOGGAMMA = nn.Parameter(
+                data=np.log(self.gamma_0) * torch.ones(self.num_support_sets, 2 * self.support_vectors_dim),
+                requires_grad=self.learn_gammas)
 
     @staticmethod
     def orthogonal_projection(s, w):
@@ -69,19 +74,54 @@ class CorpusSupportSets(nn.Module):
             w (torch.Tensor): (n+1)-dimensional vector to be projected on T_sS^n
 
         Returns:
-            P_s(w) (torch.Tensor): orthogonal projection of w onto T_sS^n
+            Pi_s(w) (torch.Tensor): orthogonal projection of w onto T_sS^n
 
         """
         # Get batch size (bs) and dimensionality of the ambient space (dim=n+1)
         bs, dim = s.shape
 
-        # REVIEW:
+        # Calculate orthogonal projection
         I_ = torch.eye(dim).reshape(1, dim, dim).repeat(bs, 1, 1)
         X = I_ - torch.matmul(s.unsqueeze(2), s.unsqueeze(1))
 
         return torch.matmul(w.unsqueeze(1), X).squeeze(1)
 
+    @staticmethod
+    def exponential_map(s, u):
+        """Calculate the exponential map from the tangent space T_sS^n to the sphere S^n.
+
+        Args:
+            s (torch.Tensor): point on T_sS^n
+            u (torch.Tensor): exponential mapping of s onto S^n
+
+        Returns:
+            exp_s(u) (torch.Tensor): exponential map of u in T_sS^n onto S^n.
+        """
+
+        u_norm = torch.norm(u, dim=1, keepdim=True)
+        cos_u = torch.cos(u_norm)
+        sin_u = torch.sin(u_norm)
+
+        return cos_u * s + sin_u * u / u_norm
+
+    def logarithmic_map(self, s, q):
+        """Calculate the logarithmic map of a sphere point q onto the tangent space TsS^n.
+
+        Args:
+            s (torch.Tensor): point on S^n defining the tangent space TsS^n
+            q (torch.Tensor): point on S^n
+
+        Returns:
+            log_s(q) (torch.Tensor): logarithmic map of q onto the tangent space TsS^n.
+
+        """
+        pi_s_q_minus_s = self.orthogonal_projection(s, q-s)
+
+        return torch.arccos((q * s).sum(axis=-1)).unsqueeze(1) * pi_s_q_minus_s / \
+            torch.norm(pi_s_q_minus_s, dim=1, keepdim=True)
+
     def forward(self, support_sets_mask, z):
+
         # Get RBF support sets batch
         support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)
         support_sets_batch = support_sets_batch.reshape(-1, 2, self.support_vectors_dim)
@@ -89,17 +129,27 @@ class CorpusSupportSets(nn.Module):
         # Get batch of RBF alpha parameters
         alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
 
-        # Get batch of RBF gamma/log(gamma) parameters
-        gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA).unsqueeze(dim=2))
+        if self.gammas == 'spherical':
+            # Get batch of RBF gamma/log(gamma) parameters
+            gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA).unsqueeze(dim=2))
 
-        # Calculate grad of f at z
-        D = z.unsqueeze(dim=1).repeat(1, 2, 1) - support_sets_batch
+            # Calculate grad of f at z
+            D = z.unsqueeze(dim=1) - support_sets_batch
+            grad_f = -2 * (alphas_batch * gammas_batch *
+                           torch.exp(-gammas_batch * (torch.norm(D, dim=2) ** 2).unsqueeze(dim=2)) * D).sum(dim=1)
 
-        grad_f = -2 * (alphas_batch * gammas_batch *
-                       torch.exp(-gammas_batch * (torch.norm(D, dim=2) ** 2).unsqueeze(dim=2)) * D).sum(dim=1)
+        elif self.gammas == 'diag':
+            # Get batch of RBF gamma/log(gamma) parameters
+            gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
+                -1, 2, self.support_vectors_dim)
 
-        # TODO: add comment
+            # Calculate grad of f at z
+            D = z.unsqueeze(dim=1) - support_sets_batch
+            SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
+            SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
+            grad_f = -(alphas_batch * torch.exp(-SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
+
+        # Orthogonally project gradient to the tanget space of z (Riemannian gradient)
         grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
-        # return grad_f / torch.norm(grad_f, dim=1, keepdim=True)
         return grad_f

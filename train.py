@@ -2,6 +2,7 @@ import argparse
 import os.path as osp
 import torch
 import clip
+import json
 from lib import *
 from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS, \
     FARL_PRETRAIN_MODEL
@@ -29,7 +30,9 @@ def main():
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
                                        the given format
-        REVIEW :--gammas                      : initial gamma parameter of the RBFs' in the Vision-Language space
+        --gammas                     : type of gamma parameters of the RBFs' in the Vision-Language space
+                                       ('diag', 'spherical')
+        --gamma-0                    : set initial gamma parameter
         --learn-gammas               : optimise CSS RBF gamma parameters
         --vl-paths                   : type of paths in the Vision-Language space ('geodesic', 'bi-geodesic'
                                        'non-geodesic')
@@ -39,21 +42,21 @@ def main():
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
-        --id                         : impose ID preservation using ArcFace loss
-        --lambda-id                  : ID loss weighting parameter
 
         ===[ Training ]=================================================================================================
         --max-iter                   : set maximum number of training iterations
         --batch-size                 : set training batch size
-        --loss                       : set loss function ('cossim', 'contrastive')
         --temperature                : set contrastive loss temperature
         --lr                         : set learning rate for learning the latent support sets LSS (with Adam optimizer)
+        --id                         : impose ID preservation using ArcFace loss
+        --lambda-id                  : ID loss weighting parameter
+        --lambda-x                   : TODO: +++
         --log-freq                   : set number iterations per log
         --ckp-freq                   : set number iterations per checkpoint model saving
 
         ===[ CUDA ]=====================================================================================================
-        --cuda                           : use CUDA during training (default)
-        --no-cuda                        : do NOT use CUDA during training
+        --cuda                       : use CUDA during training (default)
+        --no-cuda                    : do NOT use CUDA during training
         ================================================================================================================
     """
     parser = argparse.ArgumentParser(description="ContraCLIP training script")
@@ -73,25 +76,28 @@ def main():
     parser.add_argument('--vl-model', type=str, default='clip', choices=('clip', 'farl'), help="Vision-Language model")
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--gammas', type=str, help="TODO")
+    parser.add_argument('--gammas', type=str, default='diag', choices=('diag', 'spherical'),
+                        help="type of VL RBF gammas")
+    parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
     parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
     parser.add_argument('--vl-paths', type=str, default='non-geodesic',
                         choices=('geodesic', 'bi-geodesic', 'non-geodesic'), help="TODO")
-    parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--tied', action='store_true', help="set support set dipoles in tied mode")
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
     parser.add_argument('--min-shift-magnitude', type=float, default=0.1, help="minimum latent shift magnitude")
     parser.add_argument('--max-shift-magnitude', type=float, default=0.2, help="maximum latent shift magnitude")
-    parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
-    parser.add_argument('--lambda-id', type=float, default=100, help="ID loss weighting parameter")
 
     # === Training =================================================================================================== #
     parser.add_argument('--max-iter', type=int, default=10000, help="maximum number of training iterations")
     parser.add_argument('--batch-size', type=int, required=True, help="training batch size -- this should be less than "
                                                                       "or equal to the size of the given corpus")
+    parser.add_argument('--temperature', type=float, default=1.0, help="contrastive temperature")
     parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets (LSS) learning rate")
+    parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
+    parser.add_argument('--lambda-id', type=float, default=1000, help="ID loss weighting parameter")
+    parser.add_argument('--lambda-x', type=float, default=1.0, help="TODO:+++")
     parser.add_argument('--log-freq', default=10, type=int, help='number of iterations per log')
     parser.add_argument('--ckp-freq', default=1000, type=int, help='number of iterations per checkpoint model saving')
 
@@ -189,12 +195,14 @@ def main():
     print("  \\__Number of corpus support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__Prompt features dim              : {}".format(sd.dim))
-    print("  \\__RBFs' initial gamma param        : {}".format(args.gammas))
+    print("  \\__RBF gammas type                  : {}".format(args.gammas))
+    print("  \\__RBF gamma_0                      : {}".format(args.gamma_0))
     print("  \\__Learn RBF gammas                 : {}".format(args.learn_gammas))
     print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
     CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
                             gammas=args.gammas,
+                            gamma_0=args.gamma_0,
                             learn_gammas=args.learn_gammas)
 
     # Count number of trainable parameters
@@ -237,11 +245,28 @@ def main():
         print("#. Build ArcFace (ID loss)...")
     id_loss = IDLoss()
 
+    # Load vMF model parameters and build model
+    # if args.learn_gammas:
+    #     gan_vl_vmf_model_file = osp.join('experiments', 'gan_vl_features',
+    #                                      '{}-W-truncation-{}_img_{}_features_100000.json'.format(
+    #                                          args.gan, args.truncation, args.vl_model
+    #                                      ))
+    #     if not osp.isfile(gan_vl_vmf_model_file):
+    #         raise FileNotFoundError("vMF model file not found: {}. Create it using fit_vmf.py".format(
+    #             gan_vl_vmf_model_file))
+    #
+    #     with open(gan_vl_vmf_model_file, 'r') as f:
+    #         gan_vl_vmf_model_params_dict = json.load(f)
+    #
+    #     vmf_grad = vMFGradient(params_dict=gan_vl_vmf_model_params_dict)
+
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)
 
     # Train
+    # t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
+    #         id_loss=id_loss if args.id else None, vmf_grad=vmf_grad if args.learn_gammas else None)
     t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
             id_loss=id_loss if args.id else None)
 

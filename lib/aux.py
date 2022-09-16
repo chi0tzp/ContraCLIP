@@ -42,11 +42,10 @@ def create_exp_dir(args):
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
     if args.vl_paths == 'non-geodesic':
         if args.learn_gammas:
-            exp_dir += "-gammas_learnable_{}".format(osp.splitext(osp.basename(args.gammas))[0])
+            exp_dir += "-gammas_{}_learnable_{}".format(args.gammas, args.gamma_0)
         else:
-            exp_dir += "-gammas_fixed_{}".format(osp.splitext(osp.basename(args.gammas))[0])
+            exp_dir += "-gammas_{}_fixed_{}".format(args.gammas, args.gamma_0)
     if args.id:
-        # exp_dir += '+{:.0E}xID'.format(args.lambda_id)
         exp_dir += '+{}xID'.format(args.lambda_id)
     exp_dir += "-tau_{}".format(args.temperature)
     exp_dir += '-iter_{}'.format(args.max_iter)
@@ -71,11 +70,12 @@ def create_exp_dir(args):
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': [], 'loss_id': []}
+        self.stat_tracker = {'loss': [], 'loss_id': [], 'loss_x': []}
 
-    def update(self, loss, loss_id=None):
+    def update(self, loss, loss_id=None, loss_x=None):
         self.stat_tracker['loss'].append(float(loss))
         self.stat_tracker['loss_id'].append(float(loss_id))
+        self.stat_tracker['loss_x'].append(float(loss_x))
 
     def get_means(self):
         stat_means = dict()

@@ -18,78 +18,9 @@ SEMANTIC_DIPOLES_CORPORA = {
              "a photo of a young person."],
             # 1
             ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-        ],
-    'dev2':
-        [
-            # 0
-            ["a photo of a person with a surprised face.",
-             "a photo of a person in fear."],
-            # 1
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-        ],
-    'dev3':
-        [
-            # 0
-            ["a photo of a person with a surprised face.",
-             "a photo of a person with a disgusted face."],
-            # 1
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-            # 2
-            ["a photo of a person with a disgusted face.",
-             "a photo of a face in neutral expression."]
+             "a photo of a person with a surprised face."],
         ],
     'attributes':
-        [
-            # 0
-            [
-                "a photo of an old person.",
-                "a photo of a young person."
-            ],
-            # 1
-            [
-                "a photo of a female.",
-                "a photo of a male."
-            ],
-            # 2
-            [
-                "a photo of a face with dark skin color.",
-                "a photo of a face with light skin color."
-            ],
-            # 3
-            [
-                "",
-                ""
-            ],
-            # 4
-            [
-                "",
-                ""
-            ],
-            # 5
-            [
-                "",
-                ""
-            ],
-
-
-        ],
-
-    'attributes-id':
-        [
-            # 0
-            ["a photo of a person with long hair.",
-             "a photo of a person with short hair."],
-            # 1
-            ["a photo of a man with beard.",
-             "a photo of a shaved man."],
-            # 2
-            ["a photo of a face with dark skin color.",
-             "a photo of a face with light skin color."],
-        ],
-    'attributes-old':
         [
             # 0
             ["a photo of an old person.",
@@ -98,14 +29,29 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a female.",
              "a photo of a male."],
             # 2
-            ["a photo of a man with beard.",
-             "a photo of a shaved man."],
-            # 3
             ["a photo of a face with makeup.",
              "a photo of a face without makeup."],
+        ],
+    'attributes-expressions':
+        [
+            # 0
+            ["a photo of a person with long hair.",
+             "a photo of a person with short hair."],
+            # 1
+            ["a photo of a man with beard.",
+             "a photo of a shaved man."],
+            # 2
+            ["a photo of a face with makeup.",
+             "a photo of a face without makeup."],
+            # 3
+            ["a photo of a person in surprise.",
+             "a photo of a person in fear."],
             # 4
-            ["a photo of a person with tanned skin.",
-             "a photo of a person with pale skin."],
+            ["a photo of a person with a disgusted face.",
+             "a photo of a person with a happy face."],
+            # 5
+            ["a photo of a person with an angry face.",
+             "a photo of a person with a sad face."],
         ],
     'expressions6':
         [
@@ -154,9 +100,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             # 2
             ["a photo of a person with an angry face.",
              "a photo of a person with a sad face."],
-            # # 3
-            # ["a photo of a person with a neutral face.",
-            #  "a photo of a person."]
         ],
     'dogs':
         [
