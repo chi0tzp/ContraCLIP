@@ -266,7 +266,10 @@ class Trainer(object):
                 corpus_support_sets.zero_grad()
 
             # Sample latent codes from standard Gaussian
+            # REVIEW
             z = torch.randn(1, generator.dim_z)
+            # z = torch.randn(self.params.batch_size, generator.dim_z)
+
             if self.use_cuda:
                 z = z.cuda()
 
@@ -282,8 +285,16 @@ class Trainer(object):
                 elif self.params.stylegan_space == 'S':
                     latent_code = generator.get_s(generator.get_w(z, truncation=self.params.truncation))
             img = generator(latent_code)
-            img = img.repeat(self.params.batch_size, 1, 1, 1)
 
+            # TODO: add comment
+            img = img.repeat(self.params.batch_size, 1, 1, 1)
+            if len(latent_code.shape) == 2:
+                latent_code = latent_code.repeat(self.params.batch_size, 1)
+            elif len(latent_code.shape) == 3:
+                latent_code = latent_code.repeat(self.params.batch_size, 1, 1)
+            else:
+                raise ValueError("Invalid latent code shape.")
+            
             ############################################################################################################
             ##                                   [ Calculate latent shift vectors ]                                   ##
             ############################################################################################################
@@ -352,8 +363,6 @@ class Trainer(object):
             else:
                 latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(support_sets_mask,
                                                                                             latent_code)
-
-            # print("[DBG] latent_shift : {}".format(torch.norm(latent_shift, dim=1, keepdim=True)))
 
             ############################################################################################################
             ##               [ Add latent shift vectors to original latent codes and generate images ]                ##
