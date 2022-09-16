@@ -294,7 +294,7 @@ class Trainer(object):
                 latent_code = latent_code.repeat(self.params.batch_size, 1, 1)
             else:
                 raise ValueError("Invalid latent code shape.")
-            
+
             ############################################################################################################
             ##                                   [ Calculate latent shift vectors ]                                   ##
             ############################################################################################################
@@ -467,12 +467,13 @@ class Trainer(object):
             # TODO: add comment
             loss_x = 0.0
             if self.params.learn_gammas:
+                pass
                 # vmf_direction = vmf_grad(vl_img.float())
-                vl_img_shifted_prime = corpus_support_sets.exponential_map(s=vl_img.float(), u=(vl_img + vl_txt).float())
-                loss_x = self.params.lambda_x * self.cosine_embedding_loss(vl_img_shifted_prime, vl_img_shifted,
-                                                                           torch.ones(vl_img_shifted.shape[0]).to(
-                                                                               'cuda' if self.use_cuda else 'cpu'))
-                loss += loss_x
+                # vl_img_shifted_prime = corpus_support_sets.exponential_map(s=vl_img.float(), u=(vl_img + vl_txt).float())
+                # loss_x = self.params.lambda_x * self.cosine_embedding_loss(vl_img_shifted_prime, vl_img_shifted,
+                #                                                            torch.ones(vl_img_shifted.shape[0]).to(
+                #                                                                'cuda' if self.use_cuda else 'cpu'))
+                # loss += loss_x
 
             # Update statistics tracker
             self.stat_tracker.update(loss=loss.item(), loss_id=loss_id, loss_x=loss_x)
