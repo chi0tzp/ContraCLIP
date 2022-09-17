@@ -45,6 +45,11 @@ def main():
 
     # Fit and store a GMM model for each feature file
     for feat_file in tqdm(features_file_list, desc='Progress: '):
+
+        # === DEBUGGING ===
+        if feat_file != 'stylegan2_ffhq256-W-truncation-0.7_img_clip_features_100000.pt':
+            continue
+
         # Load features
         print("#. Load features {}...".format(feat_file))
         clip_features_file = osp.join(input_dir, feat_file)

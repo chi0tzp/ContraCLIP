@@ -294,7 +294,11 @@ def main():
                        '{}_{}_{}'.format(2 * args.shift_steps, args.eps, round(2 * args.shift_steps * args.eps, 3)))
     os.makedirs(out_dir, exist_ok=True)
 
-    # TODO: add comment
+    ## ============================================================================================================== ##
+    ##                                                                                                                ##
+    ##                                                [ Plot Gammas ]                                                 ##
+    ##                                                                                                                ##
+    ## ============================================================================================================== ##
     if learn_gammas:
         gamma_css_json_file = osp.join(args.exp, 'gamma_css.json')
         with open(gamma_css_json_file, 'r') as f:
@@ -316,7 +320,7 @@ def main():
             plt.plot(gammas_j_pos, label=semantic_dipoles[j][0])
             plt.plot(gammas_j_neg, label=semantic_dipoles[j][1])
             plt.legend(loc='upper right')
-            plt.savefig(fname=osp.join(gamma_figs_dir, 'gammas_dipole_{}.svg'.format(j)), dpi=300, pad_inches=0)
+            # plt.savefig(fname=osp.join(gamma_figs_dir, 'gammas_dipole_{}.svg'.format(j)), dpi=300, pad_inches=0)
             plt.savefig(fname=osp.join(gamma_figs_dir, 'gammas_dipole_{}.png'.format(j)), dpi=300, pad_inches=0)
             plt.clf()
 
