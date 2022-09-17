@@ -449,7 +449,7 @@ class Trainer(object):
             ############################################################################################################
             elif self.params.vl_paths == "geodesic":
                 # TODO: add comment
-                vl_img_diff = vl_img_shifted - vl_img
+                vl_img_diff = (vl_img_shifted - vl_img).float()
 
                 # TODO: add comment
                 corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(

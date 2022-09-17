@@ -15,8 +15,8 @@ id=true                        # Impose ID preservation using ArcFace
 lambda_id=5e3                  # ID preservation loss weighting parameter
 gammas="diag"
 gamma_0=1.0
-learn_gammas=false             # Optimise CSS RBFs' gammas
-lambda_x=100.0
+learn_gammas=true             # Optimise CSS RBFs' gammas
+lambda_x=1.0
 temperature=0.1               # Contrastive loss temperature
 
 
