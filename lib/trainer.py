@@ -75,6 +75,9 @@ class Trainer(object):
         # Define cosine similarity loss
         self.cosine_embedding_loss = nn.CosineEmbeddingLoss()
 
+        # Define L1 loss
+        self.l1_loss = nn.L1Loss()
+
     def contrastive_loss(self, img_batch, txt_batch):
         n_img, d_img = img_batch.shape
 
@@ -86,8 +89,11 @@ class Trainer(object):
         similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
         labels = torch.arange(n_img)
 
-        return 0.5 * (self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels) +
-                      self.cross_entropy_loss(similarity_matrix.T / self.params.temperature, labels))
+        return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
+
+        # REVIEW: ???
+        # return 0.5 * (self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels) +
+        #               self.cross_entropy_loss(similarity_matrix.T / self.params.temperature, labels))
 
     def get_starting_iteration(self, latent_support_sets, corpus_support_sets):
         """Check if checkpoint file exists (under `self.models_dir`) and set starting iteration at the checkpoint
@@ -409,36 +415,42 @@ class Trainer(object):
             vl_img = F.normalize(vl_img, p=2, dim=-1)
             vl_img_shifted = F.normalize(vl_img_shifted, p=2, dim=-1)
 
-            # Get the orthogonal projection of the difference of the VL image features (manipulated minus original) onto
-            # the tangent space T_{vl_img}S^{n-1} and normalise it
-            vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                                                                    w=(vl_img_shifted - vl_img).float())
-
             ############################################################################################################
             ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
             ############################################################################################################
             if self.params.vl_paths == "non-geodesic":
+                # Get the orthogonal projection of the difference of the VL image features (manipulated minus original)
+                # onto the tangent space T_{vl_img}S^{n-1} and normalise it
+                vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                                                                        w=(vl_img_shifted - vl_img).float())
+                # TODO: add comment
                 vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
+
+                # Contrastive loss
+                loss = self.contrastive_loss(vl_img_diff, vl_txt - vl_img)
 
             ############################################################################################################
             ##                                  [ Bi-geodesic VL supervisory paths ]                                  ##
             ############################################################################################################
             elif self.params.vl_paths == "bi-geodesic":
-                # TODO: add comment
-                pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-                    -1, 2, corpus_support_sets.support_vectors_dim)
-                pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
-
-                # TODO: add comment
-                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                                                                   w=(pole_vectors - vl_img).float())
-                # REVIEW
-                vl_txt = F.normalize(vl_txt, p=2)
+                raise NotImplementedError
+                # # TODO: add comment
+                # pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+                #     -1, 2, corpus_support_sets.support_vectors_dim)
+                # pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
+                #
+                # # TODO: add comment
+                # vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                #                                                    w=(pole_vectors - vl_img).float())
+                # # REVIEW: vl_txt = pole_vectors - vl_img ???
 
             ############################################################################################################
             ##                                    [ Geodesic VL supervisory paths ]                                   ##
             ############################################################################################################
             elif self.params.vl_paths == "geodesic":
+                # TODO: add comment
+                vl_img_diff = vl_img_shifted - vl_img
+
                 # TODO: add comment
                 corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
                     -1, 2, corpus_support_sets.support_vectors_dim)
@@ -447,16 +459,16 @@ class Trainer(object):
                     (corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :])
 
                 # TODO: add comment
-                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                                                                   w=corpus_text_features_batch)
-                # REVIEW
-                vl_txt = F.normalize(vl_txt, p=2)
+                vl_txt = corpus_text_features_batch
+
+                # Contrastive loss
+                loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             ############################################################################################################
             ##                                           [ Calculate loss ]                                           ##
             ############################################################################################################
-            # Contrastive loss
-            loss = self.contrastive_loss(vl_img_diff, vl_txt)
+            # # Contrastive loss
+            # loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             # Calculate ID preserving loss (ArcFace) in the case of face-generating GAN (if self.params.id is set)
             loss_id = 0.0
@@ -474,6 +486,11 @@ class Trainer(object):
                 #                                                            torch.ones(vl_img_shifted.shape[0]).to(
                 #                                                                'cuda' if self.use_cuda else 'cpu'))
                 # loss += loss_x
+
+                loss_x = self.params.lambda_x * self.l1_loss((vl_img_shifted - vl_img).norm(dim=1, keepdim=True),
+                                                             (vl_txt - vl_img).norm(dim=1, keepdim=True))
+
+
 
             # Update statistics tracker
             self.stat_tracker.update(loss=loss.item(), loss_id=loss_id, loss_x=loss_x)
