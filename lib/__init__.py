@@ -6,7 +6,6 @@ from .config import ContraCLIP_models, GAN_CLIP_FEATURES
 from .semantic_dipoles import SemanticDipoles
 from .latent_support_sets import LatentSupportSets
 from .corpus_support_sets import CorpusSupportSets
-from .reconstructor import Reconstructor
 from .preprocess import ExpPreprocess
 from .id_loss import IDLoss
 from .trainer import Trainer
