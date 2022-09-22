@@ -300,7 +300,7 @@ def main():
     ##                                                                                                                ##
     ## ============================================================================================================== ##
     if learn_gammas:
-        gamma_css_json_file = osp.join(args.exp, 'gamma_css.json')
+        gamma_css_json_file = osp.join(args.exp, 'gammas.json')
         with open(gamma_css_json_file, 'r') as f:
             gamma_css_dict = json.load(f)
         GAMMA_CSS = np.zeros((len(semantic_dipoles), 2, len(gamma_css_dict)))

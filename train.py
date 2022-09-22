@@ -2,7 +2,6 @@ import argparse
 import os.path as osp
 import torch
 import clip
-import json
 from lib import *
 from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS, \
     FARL_PRETRAIN_MODEL
@@ -25,7 +24,7 @@ def main():
         --truncation                 : set GAN's sampling truncation parameter
 
         ===[ Corpus Support Sets (CSS) ]================================================================================
-        --vl-model                   : TODO
+        --vl-model                   : choose VL model ('clip' or 'farl')
         --corpus                     : choose corpus of semantic dipoles (i.e., a set of pairs of contrasting sentences
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
@@ -34,8 +33,7 @@ def main():
                                        ('diag', 'spherical')
         --gamma-0                    : set initial gamma parameter
         --learn-gammas               : optimise CSS RBF gamma parameters
-        --vl-paths                   : type of paths in the Vision-Language space ('geodesic', 'bi-geodesic'
-                                       'non-geodesic')
+        --vl-paths                   : type of paths in the Vision-Language space ('standard', 'proposed')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --tied                       : set support set dipoles in tied mode
@@ -50,7 +48,6 @@ def main():
         --lr                         : set learning rate for learning the latent support sets LSS (with Adam optimizer)
         --id                         : impose ID preservation using ArcFace loss
         --lambda-id                  : ID loss weighting parameter
-        --lambda-x                   : TODO: +++
         --log-freq                   : set number iterations per log
         --ckp-freq                   : set number iterations per checkpoint model saving
 
@@ -80,8 +77,8 @@ def main():
                         help="type of VL RBF gammas")
     parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
     parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
-    parser.add_argument('--vl-paths', type=str, default='non-geodesic',
-                        choices=('geodesic', 'bi-geodesic', 'non-geodesic'), help="TODO")
+    parser.add_argument('--vl-paths', type=str, default='proposed', choices=('standard', 'proposed'),
+                        help="TODO")
 
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--tied', action='store_true', help="set support set dipoles in tied mode")
@@ -97,7 +94,6 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-3, help="latent support sets (LSS) learning rate")
     parser.add_argument('--id', action='store_true', help="impose ID preservation using ArcFace loss")
     parser.add_argument('--lambda-id', type=float, default=1000, help="ID loss weighting parameter")
-    parser.add_argument('--lambda-x', type=float, default=1.0, help="TODO:+++")
     parser.add_argument('--log-freq', default=10, type=int, help='number of iterations per log')
     parser.add_argument('--ckp-freq', default=1000, type=int, help='number of iterations per checkpoint model saving')
 
@@ -164,6 +160,7 @@ def main():
     print("#. Build pretrained CLIP model...")
 
     # Load CLIP model
+    clip_model = None
     if args.vl_model == 'clip':
         clip_model, _ = clip.load("ViT-B/32", device='cuda' if use_cuda else 'cpu', jit=False)
     # Load FaRL model
@@ -180,7 +177,7 @@ def main():
 
     # Get CLIP (normalized) text features for the semantic dipoles of the given corpus
     sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus], clip_model=clip_model, use_cuda=use_cuda)
-    semantic_dipoles_features = sd.get_prompt_features()
+    semantic_dipoles_features, semantic_dipoles_covariances = sd.get_dipole_features()
 
     # Experiment preprocessing
     exp_preprocessor = ExpPreprocess(gan_type=args.gan, gan_generator=G, stylegan_space=args.stylegan_space,
@@ -201,6 +198,7 @@ def main():
     print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
     CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
+                            semantic_dipoles_covariances=semantic_dipoles_covariances,
                             gammas=args.gammas,
                             gamma_0=args.gamma_0,
                             learn_gammas=args.learn_gammas)
@@ -244,21 +242,6 @@ def main():
     if args.id:
         print("#. Build ArcFace (ID loss)...")
     id_loss = IDLoss()
-
-    # Load vMF model parameters and build model
-    # if args.learn_gammas:
-    #     gan_vl_vmf_model_file = osp.join('experiments', 'gan_vl_features',
-    #                                      '{}-W-truncation-{}_img_{}_features_100000.json'.format(
-    #                                          args.gan, args.truncation, args.vl_model
-    #                                      ))
-    #     if not osp.isfile(gan_vl_vmf_model_file):
-    #         raise FileNotFoundError("vMF model file not found: {}. Create it using fit_vmf.py".format(
-    #             gan_vl_vmf_model_file))
-    #
-    #     with open(gan_vl_vmf_model_file, 'r') as f:
-    #         gan_vl_vmf_model_params_dict = json.load(f)
-    #
-    #     vmf_grad = vMFGradient(params_dict=gan_vl_vmf_model_params_dict)
 
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))

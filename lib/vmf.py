@@ -352,6 +352,21 @@ class MixvMFGrad(nn.Module):
         self.mus = mus
         self.kappas = kappas
 
+    def get_logC(self):
+        # Calculate logC
+        d = self.mus.shape[1]
+        kappa = self.kappas
+        ss = 0.5 * d - 1
+        mp_kappa = mpmath.mpf(1.0) * kappa.detach().cpu().numpy()
+        mp_logI = vMFLogPartition.log(vMFLogPartition.besseli(ss, mp_kappa))
+        logI = torch.from_numpy(np.array(mp_logI.tolist(), dtype=float)).to(kappa)
+        if (logI != logI).sum().item() > 0:  # there is nan
+            raise ValueError('NaN is detected from the output of log-besseli()')
+        logC = d * vMFLogPartition.nhlog2pi + ss * kappa.log() - logI
+
+        return logC
+
+
     @staticmethod
     def orthogonal_projection(s, w):
         """Orthogonally project the (n+1)-dimensional vector w onto the tangent space T_sS^n.

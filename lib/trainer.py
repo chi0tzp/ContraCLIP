@@ -44,9 +44,9 @@ class Trainer(object):
             with open(self.stats_json, 'w') as out:
                 json.dump({}, out)
 
-        # TODO: add comment
-        if self.params.learn_gammas:
-            self.gamma_css_json = osp.join(self.wip_dir, 'gamma_css.json')
+        # Initialise gammas dict
+        if self.params.vl_paths == "proposed":
+            self.gamma_css_json = osp.join(self.wip_dir, 'gammas.json')
             if not osp.isfile(self.gamma_css_json):
                 with open(self.gamma_css_json, 'w') as out:
                     json.dump({}, out)
@@ -75,9 +75,6 @@ class Trainer(object):
         # Define cosine similarity loss
         self.cosine_embedding_loss = nn.CosineEmbeddingLoss()
 
-        # Define L1 loss
-        self.l1_loss = nn.L1Loss()
-
     def contrastive_loss(self, img_batch, txt_batch):
         n_img, d_img = img_batch.shape
 
@@ -90,10 +87,6 @@ class Trainer(object):
         labels = torch.arange(n_img)
 
         return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
-
-        # REVIEW: ???
-        # return 0.5 * (self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels) +
-        #               self.cross_entropy_loss(similarity_matrix.T / self.params.temperature, labels))
 
     def get_starting_iteration(self, latent_support_sets, corpus_support_sets):
         """Check if checkpoint file exists (under `self.models_dir`) and set starting iteration at the checkpoint
@@ -121,7 +114,7 @@ class Trainer(object):
             mean_iter_time (float) : mean iteration time
             elapsed_time (float)   : elapsed time until current iteration
             eta (float)            : estimated time of experiment completion
-            loggamma ()            : TODO: +++
+            loggamma ()            : current loggamma parameters
         """
         # Get current training stats (for the previous `self.params.log_freq` steps) and flush them
         stats = self.stat_tracker.get_means()
@@ -133,25 +126,24 @@ class Trainer(object):
         with open(self.stats_json, 'w') as out:
             json.dump(stats_dict, out)
 
-        # TODO: add comment
-        if self.params.learn_gammas:
+        # Update gammas dict
+        if self.params.vl_paths == "proposed":
             with open(self.gamma_css_json) as f:
-                gamma_css_dict = json.load(f)
-            gamma_css_dict.update({iteration: torch.exp(loggamma).detach().cpu().numpy().tolist()})
+                gammas_dict = json.load(f)
+            gammas_dict.update({iteration: torch.exp(loggamma).detach().cpu().numpy().tolist()})
             with open(self.gamma_css_json, 'w') as out:
-                json.dump(gamma_css_dict, out)
+                json.dump(gammas_dict, out)
 
         # Flush training statistics tracker
         self.stat_tracker.flush()
 
+        # TODO: report `lr` besides `bs`
         update_progress("  \\__.Training [bs: {}] [iter: {:06d}/{:06d}] ".format(
             self.params.batch_size, iteration, self.params.max_iter), self.params.max_iter, iteration + 1)
         if iteration < self.params.max_iter - 1:
             print()
         print("         ===================================================================")
         print("      \\__Loss    : {:.04f} (tau={:.02f})".format(stats['loss'], self.params.temperature))
-        if self.params.learn_gammas:
-            print("      \\__Loss X  : {:.04f} (lambda={:.02f})".format(stats['loss_x'], self.params.lambda_x))
         if self.params.id:
             print("      \\__Loss ID : {:.04f} (lambda={:.02f})".format(stats['loss_id'], self.params.lambda_id))
         print("         ===================================================================")
@@ -160,14 +152,12 @@ class Trainer(object):
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
 
-        cnt = 0
         if self.params.id:
-            cnt += 1
-        if self.params.learn_gammas:
-            cnt += 1
-        update_stdout(8 + cnt)
+            update_stdout(9)
+        else:
+            update_stdout(8)
 
-    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None, vmf_grad=None):
+    def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None):
         """ContraCLIP training function.
 
         Args:
@@ -178,7 +168,6 @@ class Trainer(object):
             clip_model          : non-trainable (pre-trained) CLIP model
             id_loss             : if `self.params.id` is set, gamma parameters of corpus_support_sets
                                   (CSS) will be optimised during training under an additional ID preserving criterion
-            vmf_grad            : TODO: +++
         """
         # Save initial `latent_support_sets` model as `latent_support_sets_init.pt`
         torch.save(latent_support_sets.state_dict(), osp.join(self.models_dir, 'latent_support_sets_init.pt'))
@@ -199,7 +188,6 @@ class Trainer(object):
                 id_loss.cuda().eval()
             if self.params.learn_gammas:
                 corpus_support_sets.cuda().train()
-                # vmf_grad.cuda().eval()
             else:
                 corpus_support_sets.cuda().eval()
         else:
@@ -210,18 +198,19 @@ class Trainer(object):
                 id_loss.eval()
             if self.params.learn_gammas:
                 corpus_support_sets.train()
-                # vmf_grad.eval()
             else:
                 corpus_support_sets.eval()
 
-        # Set up optimizer
-        learnable_parameters = list(latent_support_sets.parameters())
-        if self.params.learn_gammas:
-            learnable_parameters += list(corpus_support_sets.parameters())
-        optimizer = torch.optim.Adam(params=learnable_parameters, lr=self.params.lr)
+        # Set up optimizer(s)
+        optimizer = torch.optim.Adam(params=latent_support_sets.parameters(), lr=self.params.lr)
 
-        # REVIEW: Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
+        gamma_optimizer = None
+        if self.params.learn_gammas:
+            gamma_optimizer = torch.optim.Adam(params=corpus_support_sets.parameters(), lr=1e-3)
+
+        # Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
         # lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
+        # Set learning rate scheduler -- reduce lr after 70% and 85% of the total number of training iterations
         lr_scheduler = MultiStepLR(optimizer=optimizer,
                                    milestones=[int(0.7 * self.params.max_iter), int(0.85 * self.params.max_iter)],
                                    gamma=0.1)
@@ -258,7 +247,6 @@ class Trainer(object):
         ##                                                                                                        ##
         ############################################################################################################
         for iteration in range(starting_iter, self.params.max_iter + 1):
-
             # Get current iteration's start time
             iter_t0 = time.time()
 
@@ -271,10 +259,8 @@ class Trainer(object):
             if self.params.learn_gammas:
                 corpus_support_sets.zero_grad()
 
-            # Sample latent codes from standard Gaussian
-            # REVIEW
+            # Sample latent code from standard Gaussian
             z = torch.randn(1, generator.dim_z)
-            # z = torch.randn(self.params.batch_size, generator.dim_z)
 
             if self.use_cuda:
                 z = z.cuda()
@@ -291,9 +277,9 @@ class Trainer(object):
                 elif self.params.stylegan_space == 'S':
                     latent_code = generator.get_s(generator.get_w(z, truncation=self.params.truncation))
             img = generator(latent_code)
-
-            # TODO: add comment
             img = img.repeat(self.params.batch_size, 1, 1, 1)
+
+            # Repeat latent code
             if len(latent_code.shape) == 2:
                 latent_code = latent_code.repeat(self.params.batch_size, 1)
             elif len(latent_code.shape) == 3:
@@ -356,6 +342,7 @@ class Trainer(object):
             # latent space is 512, in the W+-space the dimensionality is 512 * (self.params.stylegan_layer + 1), and in
             # the S-space the dimensionality of the latent space is
             # sum(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan])
+            latent_shift = None
             if ('stylegan' in self.params.gan) and (self.params.stylegan_space in ('W+', 'S')):
                 if self.params.stylegan_space == 'W+':
                     latent_shift = target_shift_magnitudes.reshape(-1, 1) * latent_support_sets(
@@ -373,6 +360,7 @@ class Trainer(object):
             ############################################################################################################
             ##               [ Add latent shift vectors to original latent codes and generate images ]                ##
             ############################################################################################################
+            img_shifted = None
             if ('stylegan' in self.params.gan) and (self.params.stylegan_space in ('W+', 'S')):
                 if self.params.stylegan_space == 'W+':
                     latent_code_reshaped = latent_code.reshape(latent_code.shape[0], -1)
@@ -388,9 +376,11 @@ class Trainer(object):
                     latent_code_target_styles_vector = torch.cat(
                         [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].keys()], dim=1)
                     latent_code_target_styles_vector = latent_code_target_styles_vector + latent_shift
-                    latent_code_target_styles_tuple = torch.split(
-                        tensor=latent_code_target_styles_vector,
-                        split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].values()), dim=1)
+                    latent_code_target_styles_tuple = \
+                        torch.split(
+                            tensor=latent_code_target_styles_vector,
+                            split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[self.params.gan].values()),
+                            dim=1)
                     latent_code_shifted = dict()
                     cnt = 0
                     for k, v in latent_code.items():
@@ -418,57 +408,30 @@ class Trainer(object):
             ############################################################################################################
             ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
             ############################################################################################################
-            if self.params.vl_paths == "non-geodesic":
+            loss = None
+            if self.params.vl_paths == "proposed":
                 # Get the orthogonal projection of the difference of the VL image features (manipulated minus original)
-                # onto the tangent space T_{vl_img}S^{n-1} and normalise it
+                # onto the tangent space T_{vl_img}S^{n-1}
                 vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                         w=(vl_img_shifted - vl_img).float())
+
                 # TODO: add comment
                 vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
-
-                # Contrastive loss
-                loss = self.contrastive_loss(vl_img_diff, vl_txt - vl_img)
-
-            ############################################################################################################
-            ##                                  [ Bi-geodesic VL supervisory paths ]                                  ##
-            ############################################################################################################
-            elif self.params.vl_paths == "bi-geodesic":
-                raise NotImplementedError
-                # # TODO: add comment
-                # pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-                #     -1, 2, corpus_support_sets.support_vectors_dim)
-                # pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
-                #
-                # # TODO: add comment
-                # vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                #                                                    w=(pole_vectors - vl_img).float())
-                # # REVIEW: vl_txt = pole_vectors - vl_img ???
-
-            ############################################################################################################
-            ##                                    [ Geodesic VL supervisory paths ]                                   ##
-            ############################################################################################################
-            elif self.params.vl_paths == "geodesic":
-                # TODO: add comment
-                vl_img_diff = (vl_img_shifted - vl_img).float()
-
-                # TODO: add comment
-                corpus_text_features_batch = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
-                    -1, 2, corpus_support_sets.support_vectors_dim)
-
-                corpus_text_features_batch = target_shift_signs.reshape(-1, 1) * \
-                    (corpus_text_features_batch[:, 0, :] - corpus_text_features_batch[:, 1, :])
-
-                # TODO: add comment
-                vl_txt = corpus_text_features_batch
 
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             ############################################################################################################
-            ##                                           [ Calculate loss ]                                           ##
+            ##                                    [ Geodesic VL supervisory paths ]                                   ##
             ############################################################################################################
-            # # Contrastive loss
-            # loss = self.contrastive_loss(vl_img_diff, vl_txt)
+            elif self.params.vl_paths == "standard":
+                # TODO: add comment
+                pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
+                    -1, 2, corpus_support_sets.support_vectors_dim)
+                pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
+
+                # Contrastive loss
+                loss = self.contrastive_loss(vl_img_shifted.float(), pole_vectors)
 
             # Calculate ID preserving loss (ArcFace) in the case of face-generating GAN (if self.params.id is set)
             loss_id = 0.0
@@ -476,24 +439,8 @@ class Trainer(object):
                 loss_id = self.params.lambda_id * id_loss(y_hat=img_shifted, y=img)
                 loss += loss_id
 
-            # TODO: add comment
-            loss_x = 0.0
-            if self.params.learn_gammas:
-                pass
-                # vmf_direction = vmf_grad(vl_img.float())
-                # vl_img_shifted_prime = corpus_support_sets.exponential_map(s=vl_img.float(), u=(vl_img + vl_txt).float())
-                # loss_x = self.params.lambda_x * self.cosine_embedding_loss(vl_img_shifted_prime, vl_img_shifted,
-                #                                                            torch.ones(vl_img_shifted.shape[0]).to(
-                #                                                                'cuda' if self.use_cuda else 'cpu'))
-                # loss += loss_x
-
-                loss_x = self.params.lambda_x * self.l1_loss((vl_img_shifted - vl_img).norm(dim=1, keepdim=True),
-                                                             (vl_txt - vl_img).norm(dim=1, keepdim=True))
-
-
-
             # Update statistics tracker
-            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id, loss_x=loss_x)
+            self.stat_tracker.update(loss=loss.item(), loss_id=loss_id)
 
             # Back-propagate
             loss.backward()
@@ -501,6 +448,9 @@ class Trainer(object):
             # Update weights
             clip_model.float()
             optimizer.step()
+            # REVIEW: start updating CSS (gammas) after a certain iteration
+            if self.params.learn_gammas and iteration > int(0.7 * self.params.max_iter):
+                gamma_optimizer.step()
             lr_scheduler.step()
             clip.model.convert_weights(clip_model)
             iter_t = time.time()

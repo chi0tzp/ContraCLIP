@@ -1,22 +1,24 @@
-import sys
 import torch
 from torch import nn
 import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, semantic_dipoles_features, gammas, gamma_0=1.0, learn_gammas=False):
+    def __init__(self, semantic_dipoles_features, semantic_dipoles_covariances, gammas, gamma_0=1.0,
+                 learn_gammas=False):
         """CorpusSupportSets class constructor.
 
         Args:
-            semantic_dipoles_features (torch.Tensor) : CLIP text feature statistics of prompts from the given corpus
-            gammas (str)                             : TODO: +++
-            gamma_0 (float)                          : TODO: +++
-            learn_gammas (bool)                      : TODO: +++
+            semantic_dipoles_features (torch.Tensor)    : TODO: +++
+            semantic_dipoles_covariances (torch.Tensor) : TODO: +++
+            gammas (str)                                : TODO: +++
+            gamma_0 (float)                             : TODO: +++
+            learn_gammas (bool)                         : TODO: +++
 
         """
         super(CorpusSupportSets, self).__init__()
         self.semantic_dipoles_features = semantic_dipoles_features
+        self.semantic_dipoles_covariances = semantic_dipoles_covariances
         self.gammas = gammas
         self.gamma_0 = gamma_0
         self.learn_gammas = learn_gammas
@@ -50,20 +52,22 @@ class CorpusSupportSets(nn.Module):
         ############################################################################################################
         ##                                          [ GAMMAS: (K, 2) ]                                            ##
         ############################################################################################################
-        # Define RBF loggammas
+        # Spherical gammas
         if self.gammas == 'spherical':
             self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma_0) * torch.ones(self.num_support_sets, 2),
                                          requires_grad=self.learn_gammas)
-            # === DBG ===
-            # self.LOGGAMMA.data[0, 0] = torch.scalar_tensor(np.log(10.0))
-            # self.LOGGAMMA.data[0, 1] = torch.scalar_tensor(np.log(1.0))
-            # self.LOGGAMMA.data[1, 0] = torch.scalar_tensor(np.log(1.0))
-            # self.LOGGAMMA.data[1, 1] = torch.scalar_tensor(np.log(2.0))
-
+        # Diagonal gammas
         elif self.gammas == 'diag':
-            self.LOGGAMMA = nn.Parameter(
-                data=np.log(self.gamma_0) * torch.ones(self.num_support_sets, 2 * self.support_vectors_dim),
-                requires_grad=self.learn_gammas)
+            # self.LOGGAMMA = nn.Parameter(
+            #     data=torch.log(torch.div(self.gamma_0, self.semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim))),
+            #     requires_grad=self.learn_gammas)
+
+            # TODO: add comment
+            # semantic_dipoles_covariances = 1.0 / self.semantic_dipoles_covariances
+            semantic_dipoles_covariances = torch.div(1.0, self.semantic_dipoles_covariances)
+            semantic_dipoles_covariances = semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim)
+            self.LOGGAMMA = nn.Parameter(data=torch.log(self.gamma_0 * semantic_dipoles_covariances),
+                                         requires_grad=self.learn_gammas)
 
     @staticmethod
     def orthogonal_projection(s, w):
@@ -129,6 +133,7 @@ class CorpusSupportSets(nn.Module):
         # Get batch of RBF alpha parameters
         alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
 
+        grad_f = None
         if self.gammas == 'spherical':
             # Get batch of RBF gamma/log(gamma) parameters
             gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA).unsqueeze(dim=2))
@@ -149,7 +154,7 @@ class CorpusSupportSets(nn.Module):
             SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
             grad_f = -(alphas_batch * torch.exp(-SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
 
-        # Orthogonally project gradient to the tanget space of z (Riemannian gradient)
+        # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
         grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
         return grad_f

@@ -29,6 +29,12 @@ def create_exp_dir(args):
     """
     exp_dir = 'Contra{}'.format('FaRL'if args.vl_model == 'farl' else 'CLIP')
     exp_dir += '-{}'.format(args.vl_paths)
+
+    if args.vl_paths == 'proposed':
+        if args.learn_gammas:
+            exp_dir += "-learnable_gamma_0_{}".format(args.gamma_0)
+        else:
+            exp_dir += "-fixed_gamma_0_{}".format(args.gamma_0)
     exp_dir += '-{}'.format(args.gan)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
@@ -40,14 +46,10 @@ def create_exp_dir(args):
     if args.tied:
         exp_dir += '-tied'
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
-    if args.vl_paths == 'non-geodesic':
-        if args.learn_gammas:
-            exp_dir += "-gammas_{}_learnable_{}".format(args.gammas, args.gamma_0)
-        else:
-            exp_dir += "-gammas_{}_fixed_{}".format(args.gammas, args.gamma_0)
     if args.id:
         exp_dir += '+{}xID'.format(args.lambda_id)
     exp_dir += "-tau_{}".format(args.temperature)
+    exp_dir += "-lr_{}".format(args.lr)
     exp_dir += '-iter_{}'.format(args.max_iter)
     exp_dir += '-{}'.format(args.corpus)
     if args.exp_id:
@@ -70,12 +72,11 @@ def create_exp_dir(args):
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': [], 'loss_id': [], 'loss_x': []}
+        self.stat_tracker = {'loss': [], 'loss_id': []}
 
-    def update(self, loss, loss_id=None, loss_x=None):
+    def update(self, loss, loss_id=None):
         self.stat_tracker['loss'].append(float(loss))
         self.stat_tracker['loss_id'].append(float(loss_id))
-        self.stat_tracker['loss_x'].append(float(loss_x))
 
     def get_means(self):
         stat_means = dict()

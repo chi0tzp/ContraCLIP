@@ -3,7 +3,7 @@ from torch import nn
 
 
 class LatentSupportSets(nn.Module):
-    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.5,
+    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.1,
                  latent_centre=None, jung_radius=None, tied_dipoles=False):
         """LatentSupportSets class constructor.
 
@@ -47,7 +47,7 @@ class LatentSupportSets(nn.Module):
         ############################################################################################################
         # Choose r_min and r_max based on the Jung radius
         self.r_min = 1.00 * self.jung_radius
-        self.r_max = 2.25 * self.jung_radius
+        self.r_max = 1.25 * self.jung_radius
         # self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
 
