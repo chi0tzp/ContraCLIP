@@ -3,8 +3,8 @@ from torch import nn
 
 
 class LatentSupportSets(nn.Module):
-    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.1,
-                 latent_centre=None, jung_radius=None, tied_dipoles=False):
+    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.01,
+                 latent_centre=None, jung_radius=None):
         """LatentSupportSets class constructor.
 
         Args:
@@ -14,7 +14,6 @@ class LatentSupportSets(nn.Module):
             beta (float)                 : set beta parameter for initializing latent space RBFs' gamma parameters
             latent_centre (torch.Tensor) : TODO: +++
             jung_radius (float)          : radius of the minimum enclosing ball of a set of a set of 10K latent codes
-            tied_dipoles (bool)          : TODO: +++
         """
         super(LatentSupportSets, self).__init__()
 
@@ -40,44 +39,28 @@ class LatentSupportSets(nn.Module):
         else:
             self.latent_centre = latent_centre
         self.beta = beta
-        self.tied_dipoles = tied_dipoles
 
         ############################################################################################################
         ##                                      [ SUPPORT_SETS: (K, N, d) ]                                       ##
         ############################################################################################################
         # Choose r_min and r_max based on the Jung radius
-        self.r_min = 1.00 * self.jung_radius
-        self.r_max = 1.25 * self.jung_radius
-        # self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_sets)
+        self.r_min = 0.90 * self.jung_radius
+        self.r_max = 1.10 * self.jung_radius
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
 
         # Define Support Sets parameters and initialise
-        if self.tied_dipoles:
-            raise NotImplementedError
-            # # TODO: add comments
-            # SUPPORT_SETS_POLE_VECTORS = torch.zeros(self.num_support_sets, self.num_support_dipoles,
-            #                                         self.support_vectors_dim)
-            # for k in range(self.num_support_sets):
-            #     for i in range(self.num_support_dipoles):
-            #         SV = torch.randn(1, self.support_vectors_dim)
-            #         SUPPORT_SETS_POLE_VECTORS[k, i] = \
-            #             latent_centre + self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
-            # self.SUPPORT_SETS_POLE_VECTORS = nn.Parameter(data=SUPPORT_SETS_POLE_VECTORS)
-        else:
-            # TODO: add comments
-            SUPPORT_SETS_INIT = torch.zeros(
-                self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
-            for k in range(self.num_support_sets):
-                SV_set = []
-                for i in range(self.num_support_dipoles):
-                    SV = torch.randn(1, self.support_vectors_dim)
-                    SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
-                    SV_set.extend([latent_centre + SV, latent_centre - SV])
-                SUPPORT_SETS_INIT[k, :] = torch.cat(SV_set)
+        SUPPORT_SETS_INIT = torch.zeros(
+            self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
+        for k in range(self.num_support_sets):
+            SV_set = []
+            for i in range(self.num_support_dipoles):
+                SV = torch.randn(1, self.support_vectors_dim)
+                SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
+                SV_set.extend([latent_centre + SV, latent_centre - SV])
+            SUPPORT_SETS_INIT[k, :] = torch.cat(SV_set)
 
-            # TODO: add comments
-            self.SUPPORT_SETS = nn.Parameter(data=SUPPORT_SETS_INIT.reshape(
-                self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim))
+        self.SUPPORT_SETS = nn.Parameter(data=SUPPORT_SETS_INIT.reshape(
+            self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim))
 
         ############################################################################################################
         ##                                          [ ALPHAS: (K, N) ]                                            ##

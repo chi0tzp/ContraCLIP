@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import nn
 import numpy as np
@@ -62,11 +63,28 @@ class CorpusSupportSets(nn.Module):
             #     data=torch.log(torch.div(self.gamma_0, self.semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim))),
             #     requires_grad=self.learn_gammas)
 
+            # REVIEW: ================================================================================================ #
+            print("self.gamma_0: {}".format(self.gamma_0))
+            print("*** self.gamma_0 * self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+            print("\tmin  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).min()))
+            print("\tmax  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).max()))
+            print("\tmean : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).mean()))
+            print("*** self.gamma_0 / self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+            print("\tmin  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).min()))
+            print("\tmax  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).max()))
+            print("\tmean : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).mean()))
+            sys.exit()
+            # REVIEW: ================================================================================================ #
+
             # TODO: add comment
-            # semantic_dipoles_covariances = 1.0 / self.semantic_dipoles_covariances
-            semantic_dipoles_covariances = torch.div(1.0, self.semantic_dipoles_covariances)
+            # REVIEW: A
+            # semantic_dipoles_covariances = torch.div(self.gamma_0, self.semantic_dipoles_covariances)
+
+            # REVIEW: B
+            semantic_dipoles_covariances = self.gamma_0 * self.semantic_dipoles_covariances
+
             semantic_dipoles_covariances = semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim)
-            self.LOGGAMMA = nn.Parameter(data=torch.log(self.gamma_0 * semantic_dipoles_covariances),
+            self.LOGGAMMA = nn.Parameter(data=torch.log(semantic_dipoles_covariances),
                                          requires_grad=self.learn_gammas)
 
     @staticmethod
@@ -152,9 +170,11 @@ class CorpusSupportSets(nn.Module):
             D = z.unsqueeze(dim=1) - support_sets_batch
             SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
             SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
-            grad_f = -(alphas_batch * torch.exp(-SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
+            grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
 
         # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
-        grad_f = self.orthogonal_projection(s=z, w=grad_f)
+        grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))
+
+        grad_f = grad_f / torch.norm(grad_f, dim=1, keepdim=True)
 
         return grad_f

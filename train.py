@@ -32,11 +32,9 @@ def main():
         --gammas                     : type of gamma parameters of the RBFs' in the Vision-Language space
                                        ('diag', 'spherical')
         --gamma-0                    : set initial gamma parameter
-        --learn-gammas               : optimise CSS RBF gamma parameters
         --vl-paths                   : type of paths in the Vision-Language space ('standard', 'proposed')
 
         ===[ Latent Support Sets (LSS) ]================================================================================
-        --tied                       : set support set dipoles in tied mode
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
         --min-shift-magnitude        : set minimum latent shift magnitude
         --max-shift-magnitude        : set maximum latent shift magnitude
@@ -76,7 +74,6 @@ def main():
     parser.add_argument('--gammas', type=str, default='diag', choices=('diag', 'spherical'),
                         help="type of VL RBF gammas")
     parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
-    parser.add_argument('--learn-gammas', action='store_true', help="optimise CSS RBF gamma parameters")
     parser.add_argument('--vl-paths', type=str, default='proposed', choices=('standard', 'proposed'),
                         help="TODO")
 
@@ -194,14 +191,12 @@ def main():
     print("  \\__Prompt features dim              : {}".format(sd.dim))
     print("  \\__RBF gammas type                  : {}".format(args.gammas))
     print("  \\__RBF gamma_0                      : {}".format(args.gamma_0))
-    print("  \\__Learn RBF gammas                 : {}".format(args.learn_gammas))
     print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
 
     CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
                             semantic_dipoles_covariances=semantic_dipoles_covariances,
                             gammas=args.gammas,
-                            gamma_0=args.gamma_0,
-                            learn_gammas=args.learn_gammas)
+                            gamma_0=args.gamma_0)
 
     # Count number of trainable parameters
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
@@ -228,8 +223,7 @@ def main():
                             num_support_dipoles=args.num_latent_support_dipoles,
                             support_vectors_dim=support_vectors_dim,
                             latent_centre=latent_centre,
-                            jung_radius=jung_radius,
-                            tied_dipoles=args.tied)
+                            jung_radius=jung_radius)
 
     # Count number of trainable parameters
     LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
@@ -248,8 +242,6 @@ def main():
     t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)
 
     # Train
-    # t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
-    #         id_loss=id_loss if args.id else None, vmf_grad=vmf_grad if args.learn_gammas else None)
     t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
             id_loss=id_loss if args.id else None)
 

@@ -10,15 +10,54 @@
 ##                                            [ Semantic Dipoles Corpora ]                                            ##
 ##                                                                                                                    ##
 ########################################################################################################################
+"""
+    Surprise:
+        "A photo of a surprised face with raised eyebrows and horizontal wrinkles on the forehead and mouth that hangs open and eyes widen."
+
+    Disgust:
+        "A photo of a disgusted face with pulled down eyebrows and wrinkled nose and narrow eyes and raised cheeks."
+
+    Anger:
+        "A photo of an angry face with eyebrows lowered and pulled closer together, squinted or raised eyelids, tightened lips, and tense jaw."
+
+    Sadness:
+        "A photo of a sad face with eyebrows pulled closer together with inner eyebrows angled up and mouth drawn downwards."
+
+    Happiness:
+        "A photo of a happy face with slightly squint eyes with wrinkles at the eyes corners, and raised cheeks raise and wrinkle runs from the sides of the nose to the corners of their mouth."
+
+    Fear:
+        "A photo of a fearful face with eyebrows pulled up with tense lower eyelids and stretched mouth and vertical wrinkles between their eyebrows."
+
+"""
+
+EXPRESSIONS_DESCRIPTION = {
+    'Surprise': "A photo of a surprised face with raised eyebrows and horizontal wrinkles on the forehead and mouth that hangs open and eyes widen.",
+    'Disgust': "A photo of a disgusted face with pulled down eyebrows and wrinkled nose and narrow eyes and raised cheeks.",
+    'Anger': "A photo of an angry face with eyebrows lowered and pulled closer together, squinted or raised eyelids, tightened lips, and tense jaw.",
+    'Sadness': "A photo of a sad and unhappy face with downturned mouth.",
+    # smiling?
+    'Happiness': "A photo of a happy face with slightly squint eyes with wrinkles at the eyes corners, and raised cheeks raise and wrinkle runs from the sides of the nose to the corners of their mouth.",
+    'Fear': "A photo of a fearful face with eyebrows pulled up with tense lower eyelids and stretched mouth and vertical wrinkles between their eyebrows."
+}
+
+
 SEMANTIC_DIPOLES_CORPORA = {
     'dev':
         [
-            # 0
-            ["a photo of an old person.",
-             "a photo of a young person."],
-            # 1
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a surprised face."],
+            # 0: anger --> sadness
+            [EXPRESSIONS_DESCRIPTION['Sadness'], EXPRESSIONS_DESCRIPTION['Anger']],
+            # 1: happiness --> fear
+            [EXPRESSIONS_DESCRIPTION['Fear'], EXPRESSIONS_DESCRIPTION['Happiness']],
+        ],
+    'expressions':
+        [
+            # 0: Anger --> Sadness
+            [EXPRESSIONS_DESCRIPTION['Sadness'], EXPRESSIONS_DESCRIPTION['Anger']],
+            # 1: Happiness --> Fear
+            [EXPRESSIONS_DESCRIPTION['Fear'], EXPRESSIONS_DESCRIPTION['Happiness']],
+            # 2: Surprise --> Disgust
+            [EXPRESSIONS_DESCRIPTION['Disgust'], EXPRESSIONS_DESCRIPTION['Surprise']],
         ],
     'attributes':
         [
@@ -53,51 +92,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             ["a photo of a person with an angry face.",
              "a photo of a person with a sad face."],
         ],
-    'attributes-expressions-2':
-        [
-            # 0
-            ["a photo of an old person.",
-             "a photo of a young person."],
-            # 1
-            ["a photo of a female.",
-             "a photo of a male."],
-            # 2
-            ["a photo of a face with makeup.",
-             "a photo of a face without makeup."],
-            # 3
-            ["a photo of a beautiful face.",
-             "a photo of an ugly face."],
-            # 4
-            ["a photo of a fat face.",
-             "a photo of a thin face."],
-            # 5
-            ["a photo of a person with closed eyes.",
-             "a photo of a person with neutral facial expression."],
-            # 6
-            ["a photo of a person in surprise.",
-             "a photo of a person in fear."],
-            # 7
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a happy face."],
-            # 8
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a sad face."],
-        ],
-    'expressions6':
-        [
-            ["a photo of a person with a happy face.",
-             "a photo of a person with a neutral face."],
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a happy face."],
-            ["a photo of a person in surprise.",
-             "a photo of a person with an angry face."],
-            ["a photo of a person with a sad face.",
-             "a photo of a person in surprise."],
-            ["a photo of a person in fear.",
-             "a photo of a person with a sad face."],
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person in fear."]
-        ],
     'n2e':
         [
             # 0
@@ -118,18 +112,6 @@ SEMANTIC_DIPOLES_CORPORA = {
             # 5
             ["a photo of a person with an angry face.",
              "a photo of a person with a neutral face."]
-        ],
-    'exp-pairs':
-        [
-            # 0
-            ["a photo of a person in surprise.",
-             "a photo of a person in fear."],
-            # 1
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a happy face."],
-            # 2
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a sad face."],
         ],
     'dogs':
         [

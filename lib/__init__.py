@@ -4,6 +4,7 @@ from .config import GENFORCE, GENFORCE_MODELS, STYLEGAN_LAYERS, STYLEGAN2_STYLE_
 from .config import FARL, FARL_PRETRAIN_MODEL, SFD, ARCFACE, FAIRFACE, HOPENET, AUDET, CELEBA_ATTRIBUTES, FER
 from .config import ContraCLIP_models, GAN_CLIP_FEATURES
 from .semantic_dipoles import SemanticDipoles
+# from .semantic_dipoles2 import SemanticDipoles
 from .latent_support_sets import LatentSupportSets
 from .corpus_support_sets import CorpusSupportSets
 from .preprocess import ExpPreprocess

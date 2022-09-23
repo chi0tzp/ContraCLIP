@@ -31,10 +31,7 @@ def create_exp_dir(args):
     exp_dir += '-{}'.format(args.vl_paths)
 
     if args.vl_paths == 'proposed':
-        if args.learn_gammas:
-            exp_dir += "-learnable_gamma_0_{}".format(args.gamma_0)
-        else:
-            exp_dir += "-fixed_gamma_0_{}".format(args.gamma_0)
+        exp_dir += "-gamma_0_{}".format(args.gamma_0)
     exp_dir += '-{}'.format(args.gan)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)

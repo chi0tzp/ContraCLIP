@@ -6,7 +6,7 @@ import json
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import StepLR, MultiStepLR
+from torch.optim.lr_scheduler import MultiStepLR
 from torchvision import transforms
 import numpy as np
 import time
@@ -86,7 +86,11 @@ class Trainer(object):
         similarity_matrix = torch.matmul(img_batch_l2, txt_batch_l2.T)
         labels = torch.arange(n_img)
 
-        return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
+        # REVIEW:
+        return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels) +\
+            self.cross_entropy_loss(similarity_matrix.T / self.params.temperature, labels)
+
+        # return self.cross_entropy_loss(similarity_matrix / self.params.temperature, labels)
 
     def get_starting_iteration(self, latent_support_sets, corpus_support_sets):
         """Check if checkpoint file exists (under `self.models_dir`) and set starting iteration at the checkpoint
@@ -106,7 +110,7 @@ class Trainer(object):
 
         return starting_iter
 
-    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, loggamma):
+    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, loggamma, last_lr):
         """Log progress (loss + ETA).
 
         Args:
@@ -115,6 +119,7 @@ class Trainer(object):
             elapsed_time (float)   : elapsed time until current iteration
             eta (float)            : estimated time of experiment completion
             loggamma ()            : current loggamma parameters
+            last_lr (list)         : last learning rates
         """
         # Get current training stats (for the previous `self.params.log_freq` steps) and flush them
         stats = self.stat_tracker.get_means()
@@ -137,9 +142,9 @@ class Trainer(object):
         # Flush training statistics tracker
         self.stat_tracker.flush()
 
-        # TODO: report `lr` besides `bs`
-        update_progress("  \\__.Training [bs: {}] [iter: {:06d}/{:06d}] ".format(
-            self.params.batch_size, iteration, self.params.max_iter), self.params.max_iter, iteration + 1)
+        last_lr = ', '.join('{:.6f}'.format(lr) for lr in last_lr)
+        update_progress("  \\__.Training [bs: {}] [lr: {}] [iter: {:06d}/{:06d}] ".format(
+            self.params.batch_size, last_lr, iteration, self.params.max_iter), self.params.max_iter, iteration + 1)
         if iteration < self.params.max_iter - 1:
             print()
         print("         ===================================================================")
@@ -184,35 +189,26 @@ class Trainer(object):
             generator.cuda().eval()
             clip_model.cuda().eval()
             latent_support_sets.cuda().train()
+            corpus_support_sets.cuda().eval()
             if self.params.id:
                 id_loss.cuda().eval()
-            if self.params.learn_gammas:
-                corpus_support_sets.cuda().train()
-            else:
-                corpus_support_sets.cuda().eval()
         else:
             generator.eval()
             clip_model.eval()
             latent_support_sets.train()
+            corpus_support_sets.eval()
             if self.params.id:
                 id_loss.eval()
-            if self.params.learn_gammas:
-                corpus_support_sets.train()
-            else:
-                corpus_support_sets.eval()
 
         # Set up optimizer(s)
+        # TODO:
+        #   Check `amsgrad=True`
+        #   Check `weight_decay`
         optimizer = torch.optim.Adam(params=latent_support_sets.parameters(), lr=self.params.lr)
 
-        gamma_optimizer = None
-        if self.params.learn_gammas:
-            gamma_optimizer = torch.optim.Adam(params=corpus_support_sets.parameters(), lr=1e-3)
-
-        # Set learning rate scheduler -- reduce lr after 80% of the total number of training iterations
-        # lr_scheduler = StepLR(optimizer=optimizer, step_size=int(0.8 * self.params.max_iter), gamma=0.1)
-        # Set learning rate scheduler -- reduce lr after 70% and 85% of the total number of training iterations
+        # Set learning rate scheduler -- reduce lr after 50% and 75% of the total number of training iterations
         lr_scheduler = MultiStepLR(optimizer=optimizer,
-                                   milestones=[int(0.7 * self.params.max_iter), int(0.85 * self.params.max_iter)],
+                                   milestones=[int(0.5 * self.params.max_iter), int(0.75 * self.params.max_iter)],
                                    gamma=0.1)
 
         # Get starting iteration
@@ -256,8 +252,6 @@ class Trainer(object):
             clip_model.zero_grad()
             if self.params.id:
                 id_loss.zero_grad()
-            if self.params.learn_gammas:
-                corpus_support_sets.zero_grad()
 
             # Sample latent code from standard Gaussian
             z = torch.randn(1, generator.dim_z)
@@ -406,7 +400,7 @@ class Trainer(object):
             vl_img_shifted = F.normalize(vl_img_shifted, p=2, dim=-1)
 
             ############################################################################################################
-            ##                                 [ Non-geodesic VL supervisory paths ]                                  ##
+            ##                                   [ Proposed VL supervisory paths ]                                    ##
             ############################################################################################################
             loss = None
             if self.params.vl_paths == "proposed":
@@ -419,16 +413,21 @@ class Trainer(object):
                 vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
 
                 # Contrastive loss
+                # REVIEW:
+                #   Use `vl_txt - vl_img` instead?
                 loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             ############################################################################################################
-            ##                                    [ Geodesic VL supervisory paths ]                                   ##
+            ##                                     [ Standard supervisory paths ]                                     ##
             ############################################################################################################
             elif self.params.vl_paths == "standard":
                 # TODO: add comment
                 pole_vectors = torch.matmul(support_sets_mask, corpus_support_sets.SUPPORT_SETS).reshape(
                     -1, 2, corpus_support_sets.support_vectors_dim)
                 pole_vectors = torch.matmul(prompt_mask, pole_vectors).squeeze(1)
+
+                # TODO: Double check that `pole_vectors` are of unit-norm and that they correspond to the correct pole
+                #  vectors depending on the randomly chosen magnitudes (positive/negative)
 
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_shifted.float(), pole_vectors)
@@ -448,9 +447,6 @@ class Trainer(object):
             # Update weights
             clip_model.float()
             optimizer.step()
-            # REVIEW: start updating CSS (gammas) after a certain iteration
-            if self.params.learn_gammas and iteration > int(0.7 * self.params.max_iter):
-                gamma_optimizer.step()
             lr_scheduler.step()
             clip.model.convert_weights(clip_model)
             iter_t = time.time()
@@ -473,7 +469,8 @@ class Trainer(object):
                                   mean_iter_time=mean_iter_time,
                                   elapsed_time=elapsed_time,
                                   eta=eta,
-                                  loggamma=corpus_support_sets.LOGGAMMA)
+                                  loggamma=corpus_support_sets.LOGGAMMA,
+                                  last_lr=lr_scheduler.get_last_lr())
 
             # Save checkpoint model file and latent support_sets model state dicts after current iteration
             if iteration % self.params.ckp_freq == 0:
