@@ -73,7 +73,7 @@ class CorpusSupportSets(nn.Module):
             print("\tmin  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).min()))
             print("\tmax  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).max()))
             print("\tmean : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).mean()))
-            sys.exit()
+            # sys.exit()
             # REVIEW: ================================================================================================ #
 
             # TODO: add comment
