@@ -44,13 +44,6 @@ class Trainer(object):
             with open(self.stats_json, 'w') as out:
                 json.dump({}, out)
 
-        # Initialise gammas dict
-        if self.params.vl_paths == "proposed":
-            self.gamma_css_json = osp.join(self.wip_dir, 'gammas.json')
-            if not osp.isfile(self.gamma_css_json):
-                with open(self.gamma_css_json, 'w') as out:
-                    json.dump({}, out)
-
         # Create models sub-directory
         self.models_dir = osp.join(self.wip_dir, 'models')
         os.makedirs(self.models_dir, exist_ok=True)
@@ -110,7 +103,7 @@ class Trainer(object):
 
         return starting_iter
 
-    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, loggamma, last_lr):
+    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, last_lr):
         """Log progress (loss + ETA).
 
         Args:
@@ -118,7 +111,6 @@ class Trainer(object):
             mean_iter_time (float) : mean iteration time
             elapsed_time (float)   : elapsed time until current iteration
             eta (float)            : estimated time of experiment completion
-            loggamma ()            : current loggamma parameters
             last_lr (list)         : last learning rates
         """
         # Get current training stats (for the previous `self.params.log_freq` steps) and flush them
@@ -130,14 +122,6 @@ class Trainer(object):
         stats_dict.update({iteration: stats})
         with open(self.stats_json, 'w') as out:
             json.dump(stats_dict, out)
-
-        # Update gammas dict
-        if self.params.vl_paths == "proposed":
-            with open(self.gamma_css_json) as f:
-                gammas_dict = json.load(f)
-            gammas_dict.update({iteration: torch.exp(loggamma).detach().cpu().numpy().tolist()})
-            with open(self.gamma_css_json, 'w') as out:
-                json.dump(gammas_dict, out)
 
         # Flush training statistics tracker
         self.stat_tracker.flush()
@@ -469,7 +453,6 @@ class Trainer(object):
                                   mean_iter_time=mean_iter_time,
                                   elapsed_time=elapsed_time,
                                   eta=eta,
-                                  loggamma=corpus_support_sets.LOGGAMMA,
                                   last_lr=lr_scheduler.get_last_lr())
 
             # Save checkpoint model file and latent support_sets model state dicts after current iteration
