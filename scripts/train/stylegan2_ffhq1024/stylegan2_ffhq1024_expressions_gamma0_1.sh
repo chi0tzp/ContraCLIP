@@ -24,7 +24,7 @@ max_shift_magnitude=0.2        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=3                   # Set training batch size (cannot be larger than the size of the given corpus)
-max_iter=5000                  # Set maximum number of training iterations
+max_iter=10000                 # Set maximum number of training iterations
 lr=1e-1                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 
 # ==================================================================================================================== #
