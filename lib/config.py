@@ -10,44 +10,32 @@
 ##                                            [ Semantic Dipoles Corpora ]                                            ##
 ##                                                                                                                    ##
 ########################################################################################################################
-"""
-    Surprise:
-        "A photo of a surprised face with raised eyebrows and horizontal wrinkles on the forehead and mouth that hangs open and eyes widen."
-
-    Disgust:
-        "A photo of a disgusted face with pulled down eyebrows and wrinkled nose and narrow eyes and raised cheeks."
-
-    Anger:
-        "A photo of an angry face with eyebrows lowered and pulled closer together, squinted or raised eyelids, tightened lips, and tense jaw."
-
-    Sadness:
-        "A photo of a sad face with eyebrows pulled closer together with inner eyebrows angled up and mouth drawn downwards."
-
-    Happiness:
-        "A photo of a happy face with slightly squint eyes with wrinkles at the eyes corners, and raised cheeks raise and wrinkle runs from the sides of the nose to the corners of their mouth."
-
-    Fear:
-        "A photo of a fearful face with eyebrows pulled up with tense lower eyelids and stretched mouth and vertical wrinkles between their eyebrows."
-
-"""
+# REVIEW: BACKUP
+# EXPRESSIONS_DESCRIPTION = {
+#     'Surprise': "A photo of a surprised face with raised eyebrows and horizontal wrinkles on the forehead and mouth that hangs open and eyes widen.",
+#     'Disgust': "A photo of a disgusted face with pulled down eyebrows and wrinkled nose and narrow eyes and raised cheeks.",
+#     'Anger': "A photo of an angry face with eyebrows lowered and pulled closer together, squinted or raised eyelids, tightened lips, and tense jaw.",
+#     'Sadness': "A photo of a sad and unhappy face with downturned mouth.",
+#     'Happiness': "A photo of a happy face with slightly squint eyes with wrinkles at the eyes corners, and raised cheeks raise and wrinkle runs from the sides of the nose to the corners of their mouth.",
+#     'Fear': "A photo of a fearful face with eyebrows pulled up with tense lower eyelids and stretched mouth and vertical wrinkles between their eyebrows."
+# }
 
 EXPRESSIONS_DESCRIPTION = {
-    'Surprise': "A photo of a surprised face with raised eyebrows and horizontal wrinkles on the forehead and mouth that hangs open and eyes widen.",
+    'Surprise': "A photo of a surprised face with open mouth and widen eyes and raised eyebrows and horizontal wrinkles on the forehead.",
     'Disgust': "A photo of a disgusted face with pulled down eyebrows and wrinkled nose and narrow eyes and raised cheeks.",
     'Anger': "A photo of an angry face with eyebrows lowered and pulled closer together, squinted or raised eyelids, tightened lips, and tense jaw.",
-    'Sadness': "A photo of a sad and unhappy face with downturned mouth.",
-    # smiling?
-    'Happiness': "A photo of a happy face with slightly squint eyes with wrinkles at the eyes corners, and raised cheeks raise and wrinkle runs from the sides of the nose to the corners of their mouth.",
-    'Fear': "A photo of a fearful face with eyebrows pulled up with tense lower eyelids and stretched mouth and vertical wrinkles between their eyebrows."
+    'Sadness': "A photo of a sad face with mouth drawn downwards pulled eyebrows and inner eyebrows angled up.",
+    'Happiness': "A photo of a happy smiling face with slightly squint eyes with wrinkles at the eyes corners and raised cheeks and wrinkle running from the sides of the nose to the corners of the mouth.",
+    'Fear': "A photo of a fearful face with eyebrows pulled up and lowered eyelids and stretched mouth and vertical wrinkles between the eyebrows."
 }
 
 
 SEMANTIC_DIPOLES_CORPORA = {
     'dev':
         [
-            # 0: anger --> sadness
+            # 0: Anger --> Sadness
             [EXPRESSIONS_DESCRIPTION['Sadness'], EXPRESSIONS_DESCRIPTION['Anger']],
-            # 1: happiness --> fear
+            # 1: Happiness --> Fear
             [EXPRESSIONS_DESCRIPTION['Fear'], EXPRESSIONS_DESCRIPTION['Happiness']],
         ],
     'expressions':
