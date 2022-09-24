@@ -3,7 +3,6 @@
 #                                             [ Experiment configuration ]                                             #
 # ==================================================================================================================== #
 
-
 # === GAN Type / Corpus ============================================================================================== #
 gan="stylegan2_ffhq1024"       # Choose GAN type from lib/config.py:GENFORCE_MODELS
 stylegan_space="W+"            # Choose StyleGAN latent space: Z, W, W+, or S
@@ -15,8 +14,7 @@ vl_sim="proposed-no-warping"
 include_cls_in_mean=true
 id=true                        # Impose ID preservation using ArcFace
 lambda_id=5e3                  # ID preservation loss weighting parameter
-gammas="diag"                  # CSS RBFs' gammas type ('diag' or 'spherical')
-gamma_0=1e-3                   # TODO: +++
+gamma_0=1e0                    # TODO: +++
 temperature=0.07               # Contrastive loss temperature
 
 # ====[ Latent Mapper (LM) ]========================================================================================== #
@@ -49,7 +47,6 @@ python train.py --gan=${gan} \
                 --corpus=${corpus} \
                 --vl-sim=${vl_sim} \
                 ${include_cls_in_mean_} \
-                --gammas=${gammas} \
                 --gamma-0=${gamma_0} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --temperature=${temperature} \
