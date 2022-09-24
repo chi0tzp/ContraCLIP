@@ -470,6 +470,10 @@ class Trainer(object):
             ##                                   [ Standard Image-Text Similarity ]                                   ##
             ############################################################################################################
             elif self.params.vl_sim == "standard":
+                # TODO: Bug due to batch_size != size of corpus...
+                #   pole_vectors = torch.matmul(prompt_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).squeeze(1)
+                #   RuntimeError: The size of tensor a (2) must match the size of tensor b (3) at non-singleton dimension 0
+
                 # Get the corresponding pole vectors
                 pole_vectors = torch.matmul(prompt_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).squeeze(1)
 

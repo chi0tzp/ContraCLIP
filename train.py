@@ -14,7 +14,8 @@ def main():
     Options:
         === [Experiment ID] ============================================================================================
         --exp-id                     : optional experiment id string
-
+        TODO:
+            --exp-subdir                 : optional subdirectory under experiments/complete/
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
         --stylegan-space             : set StyleGAN's latent space (Z, W, W+, S) to look for interpretable paths

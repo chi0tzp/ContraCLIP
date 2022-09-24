@@ -70,36 +70,30 @@ SEMANTIC_DIPOLES_CORPORA = {
             # 2
             ["a photo of a face with makeup.",
              "a photo of a face without makeup."],
-            # 3
-            ["a photo of a person in surprise.",
-             "a photo of a person in fear."],
-            # 4
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a happy face."],
-            # 5
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a sad face."],
+            # 3: Anger --> Sadness
+            [EXPRESSIONS_DESCRIPTION['Sadness'], EXPRESSIONS_DESCRIPTION['Anger']],
+            # 4: Happiness --> Fear
+            [EXPRESSIONS_DESCRIPTION['Fear'], EXPRESSIONS_DESCRIPTION['Happiness']],
+            # 5: Surprise --> Disgust
+            [EXPRESSIONS_DESCRIPTION['Disgust'], EXPRESSIONS_DESCRIPTION['Surprise']],
         ],
-    'n2e':
+    'attributes-celeba':
         [
             # 0
-            ["a photo of a person in surprise.",
-             "a photo of a person with a neutral face."],
+            ["a photo of an old person.",
+             "a photo of a young person."],
             # 1
-            ["a photo of a person in fear.",
-             "a photo of a person with a neutral face."],
+            ["a photo of a female.",
+             "a photo of a male."],
             # 2
-            ["a photo of a person with a disgusted face.",
-             "a photo of a person with a neutral face."],
+            ["a photo of a face with makeup.",
+             "a photo of a face without makeup."],
             # 3
-            ["a photo of a person with a happy face.",
-             "a photo of a person with a neutral face."],
+            ["a photo of a person with long hair.",
+             "a photo of a bald person."],
             # 4
-            ["a photo of a person with a sad face.",
-             "a photo of a person with a neutral face."],
-            # 5
-            ["a photo of a person with an angry face.",
-             "a photo of a person with a neutral face."]
+            ["a photo of a person wearing glasses.",
+             "a photo of a person without glasses."],
         ],
     'dogs':
         [
