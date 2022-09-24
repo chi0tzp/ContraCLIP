@@ -5,21 +5,18 @@
 
 
 # === GAN Type / Corpus ============================================================================================== #
-gan="stylegan2_ffhq256"        # Choose GAN type from lib/config.py:GENFORCE_MODELS
+gan="stylegan2_ffhq1024"       # Choose GAN type from lib/config.py:GENFORCE_MODELS
 stylegan_space="W+"            # Choose StyleGAN latent space: Z, W, W+, or S
 stylegan_layer=9               # In the case of W+ space, choose up to which layer to use for learning latent paths
 corpus="expressions"           # Choose corpus of semantic dipoles from lib/config.py:SEMANTIC_DIPOLES_CORPORA
-# Type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping', 'proposed-warping-aux')
 vl_sim="proposed-no-warping"
-# vl_sim="proposed-warping-aux"
-# vl_sim="proposed-warping"
 
 # ====[ Vision-Language Sphere Warper (VLSW) ========================================================================= #
 include_cls_in_mean=true
 id=true                        # Impose ID preservation using ArcFace
 lambda_id=5e3                  # ID preservation loss weighting parameter
 gammas="diag"                  # CSS RBFs' gammas type ('diag' or 'spherical')
-gamma_0=1e-3                    # TODO: +++
+gamma_0=1e-3                   # TODO: +++
 temperature=0.07               # Contrastive loss temperature
 
 # ====[ Latent Mapper (LM) ]========================================================================================== #
@@ -29,7 +26,7 @@ max_shift_magnitude=0.2        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=3                   # Set training batch size (cannot be larger than the size of the given corpus)
-max_iter=5000                  # Set maximum number of training iterations
+max_iter=3000                  # Set maximum number of training iterations
 lr=1e-1                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 # ==================================================================================================================== #
 
