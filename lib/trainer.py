@@ -462,25 +462,6 @@ class Trainer(object):
                 pole_vectors_diff = target_shift_signs.reshape(-1, 1) * \
                     (semantic_dipoles_features_cls_batch[:, 0, :] - semantic_dipoles_features_cls_batch[:, 1, :])
 
-                # TODO: Check that the differences are being calculated correctly ======================================
-                # print("target_support_sets_indices : {}".format(target_support_sets_indices))
-                # print("target_shift_magnitudes     : {}".format(target_shift_magnitudes))
-                # print("target_shift_signs          : {}".format(target_shift_signs))
-                # print(10 * '-')
-                #
-                # print("semantic_dipoles_features_cls_batch : {}".format(semantic_dipoles_features_cls_batch.shape))
-                # for i_ in range(semantic_dipoles_features_cls_batch.shape[0]):
-                #     print("i_ = {}".format(i_))
-                #     pos_minus_neg = semantic_dipoles_features_cls_batch[i_, 0, :] - semantic_dipoles_features_cls_batch[i_, 1, :]
-                #     neg_minus_pos = semantic_dipoles_features_cls_batch[i_, 1, :] - semantic_dipoles_features_cls_batch[i_, 0, :]
-                #     print("\tpos - neg = {}, {}".format(pos_minus_neg[:3], torch.norm(pos_minus_neg)))
-                #     print("\tneg - pos = {}, {}".format(neg_minus_pos[:3], torch.norm(neg_minus_pos)))
-                # print(10 * '-')
-                # print("pole_vectors_diff : {}".format(pole_vectors_diff.shape))
-                # print(pole_vectors_diff[:, :3])
-                # print(torch.norm(pole_vectors_diff, dim=1))
-                # TODO: ================================================================================================
-
                 # Calculate the orthogonal projection of the pole difference features, i.e., the ending minus the
                 # starting pole onto the tangent space T_{vl_img}S^{n-1}
                 vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=pole_vectors_diff)
@@ -501,7 +482,6 @@ class Trainer(object):
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_shifted.float(), pole_vectors)
             ############################################################################################################
-
 
             # Calculate ID preserving loss (ArcFace) in the case of face-generating GAN (if self.params.id is set)
             loss_id = 0.0

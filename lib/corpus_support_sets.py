@@ -1,7 +1,6 @@
 import sys
 import torch
 from torch import nn
-import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
