@@ -24,19 +24,24 @@ class DataParallelPassthrough(nn.DataParallel):
 
 
 class Trainer(object):
-    def __init__(self, params=None, exp_dir=None, use_cuda=False, multi_gpu=False):
+    def __init__(self, params=None, exp_dir=None, exp_subdir=None, use_cuda=False, multi_gpu=False):
         if params is None:
             raise ValueError("Cannot build a Trainer instance with empty params: params={}".format(params))
         else:
             self.params = params
+        self.exp_dir = exp_dir
+        self.exp_subdir = exp_subdir
         self.use_cuda = use_cuda
         self.multi_gpu = multi_gpu
 
         # Set output directory for current experiment (wip)
-        self.wip_dir = osp.join("experiments", "wip", exp_dir)
+        self.wip_dir = osp.join("experiments", "wip", self.exp_dir)
 
         # Set directory for completed experiment
-        self.complete_dir = osp.join("experiments", "complete", exp_dir)
+        if exp_subdir:
+            self.complete_dir = osp.join("experiments", "complete", self.exp_subdir, self.exp_dir)
+        else:
+            self.complete_dir = osp.join("experiments", "complete", self.exp_dir)
 
         # Create log subdirectory and define stat.json file
         self.stats_json = osp.join(self.wip_dir, 'stats.json')
@@ -270,8 +275,13 @@ class Trainer(object):
 
             # Sample indices of shift vectors (`self.params.batch_size` out of `self.params.num_support_sets`)
             # target_support_sets_indices = torch.randint(0, self.params.num_support_sets, [self.params.batch_size])
-            target_support_sets_indices = torch.randint(0, latent_support_sets.num_support_sets,
-                                                        [self.params.batch_size])
+            # REVIEW: previous buggy implementation of indices sampling
+            # target_support_sets_indices = torch.randint(0, latent_support_sets.num_support_sets,
+            #                                             [self.params.batch_size])
+
+            tmp_ids = torch.ones(latent_support_sets.num_support_sets).multinomial(num_samples=self.params.batch_size,
+                                                                                   replacement=False)
+            target_support_sets_indices = torch.arange(latent_support_sets.num_support_sets)[tmp_ids]
             if self.use_cuda:
                 target_support_sets_indices = target_support_sets_indices.cuda()
 
@@ -434,7 +444,6 @@ class Trainer(object):
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
-
             ############################################################################################################
             ##                             [ Proposed Image-Text Similarity (No-warping) ]                            ##
             ############################################################################################################
@@ -444,24 +453,37 @@ class Trainer(object):
                 vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                                                                         w=(vl_img_shifted - vl_img).float())
 
-                # TODO: Check that the differences are being calculated correctly
                 # Get the vectors between the ending and the starting poles
-                semantic_dipoles_features_cls = corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS.reshape(
-                    corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS.shape[0],
-                    corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS.shape[1] *
-                    corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS.shape[2])
                 semantic_dipoles_features_cls_batch = torch.matmul(
-                    support_sets_mask, semantic_dipoles_features_cls).reshape(
+                    support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
                     -1, 2, corpus_support_sets.support_vectors_dim)
 
                 # Calculate the differences
-                semantic_dipoles_features_cls_batch = target_shift_signs.reshape(-1, 1) * \
+                pole_vectors_diff = target_shift_signs.reshape(-1, 1) * \
                     (semantic_dipoles_features_cls_batch[:, 0, :] - semantic_dipoles_features_cls_batch[:, 1, :])
+
+                # TODO: Check that the differences are being calculated correctly ======================================
+                # print("target_support_sets_indices : {}".format(target_support_sets_indices))
+                # print("target_shift_magnitudes     : {}".format(target_shift_magnitudes))
+                # print("target_shift_signs          : {}".format(target_shift_signs))
+                # print(10 * '-')
+                #
+                # print("semantic_dipoles_features_cls_batch : {}".format(semantic_dipoles_features_cls_batch.shape))
+                # for i_ in range(semantic_dipoles_features_cls_batch.shape[0]):
+                #     print("i_ = {}".format(i_))
+                #     pos_minus_neg = semantic_dipoles_features_cls_batch[i_, 0, :] - semantic_dipoles_features_cls_batch[i_, 1, :]
+                #     neg_minus_pos = semantic_dipoles_features_cls_batch[i_, 1, :] - semantic_dipoles_features_cls_batch[i_, 0, :]
+                #     print("\tpos - neg = {}, {}".format(pos_minus_neg[:3], torch.norm(pos_minus_neg)))
+                #     print("\tneg - pos = {}, {}".format(neg_minus_pos[:3], torch.norm(neg_minus_pos)))
+                # print(10 * '-')
+                # print("pole_vectors_diff : {}".format(pole_vectors_diff.shape))
+                # print(pole_vectors_diff[:, :3])
+                # print(torch.norm(pole_vectors_diff, dim=1))
+                # TODO: ================================================================================================
 
                 # Calculate the orthogonal projection of the pole difference features, i.e., the ending minus the
                 # starting pole onto the tangent space T_{vl_img}S^{n-1}
-                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                                                                   w=semantic_dipoles_features_cls_batch)
+                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=pole_vectors_diff)
 
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_diff, vl_txt)
@@ -470,12 +492,11 @@ class Trainer(object):
             ##                                   [ Standard Image-Text Similarity ]                                   ##
             ############################################################################################################
             elif self.params.vl_sim == "standard":
-                # TODO: Bug due to batch_size != size of corpus...
-                #   pole_vectors = torch.matmul(prompt_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).squeeze(1)
-                #   RuntimeError: The size of tensor a (2) must match the size of tensor b (3) at non-singleton dimension 0
-
                 # Get the corresponding pole vectors
-                pole_vectors = torch.matmul(prompt_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).squeeze(1)
+                semantic_dipoles_features_cls_batch = torch.matmul(
+                    support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
+                    -1, 2, corpus_support_sets.support_vectors_dim)
+                pole_vectors = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
 
                 # Contrastive loss
                 loss = self.contrastive_loss(vl_img_shifted.float(), pole_vectors)

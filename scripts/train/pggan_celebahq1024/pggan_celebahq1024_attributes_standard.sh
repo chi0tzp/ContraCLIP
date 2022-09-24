@@ -12,8 +12,7 @@ vl_sim="standard"
 include_cls_in_mean=true
 id=true                        # Impose ID preservation using ArcFace
 lambda_id=5e3                  # ID preservation loss weighting parameter
-gammas="diag"                  # CSS RBFs' gammas type ('diag' or 'spherical')
-gamma_0=1e-3                   # TODO: +++
+gamma_0=1e0                    # TODO: +++
 temperature=0.07               # Contrastive loss temperature
 
 # ====[ Latent Mapper (LM) ]========================================================================================== #
@@ -24,7 +23,7 @@ max_shift_magnitude=0.2        # set maximum latent shift magnitude
 # === Training ======================================================================================================= #
 batch_size=5                   # Set training batch size (cannot be larger than the size of the given corpus)
 max_iter=5000                  # Set maximum number of training iterations
-lr=1e-1                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
+lr=1e-2                        # set learning rate for learning the latent support sets LSS (with Adam optimizer)
 # ==================================================================================================================== #
 
 
@@ -43,7 +42,6 @@ python train.py --gan=${gan} \
                 --corpus=${corpus} \
                 --vl-sim=${vl_sim} \
                 ${include_cls_in_mean_} \
-                --gammas=${gammas} \
                 --gamma-0=${gamma_0} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --temperature=${temperature} \

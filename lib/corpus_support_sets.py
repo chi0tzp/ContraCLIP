@@ -5,14 +5,13 @@ import numpy as np
 
 
 class CorpusSupportSets(nn.Module):
-    def __init__(self, semantic_dipoles_cls, semantic_dipoles_means, semantic_dipoles_covariances, gammas, gamma_0=1.0):
+    def __init__(self, semantic_dipoles_cls, semantic_dipoles_means, semantic_dipoles_covariances, gamma_0=1.0):
         """CorpusSupportSets class constructor.
 
         Args:
             semantic_dipoles_cls (torch.Tensor)         : TODO: +++
             semantic_dipoles_means (torch.Tensor)       : TODO: +++
             semantic_dipoles_covariances (torch.Tensor) : TODO: +++
-            gammas (str)                                : TODO: +++
             gamma_0 (float)                             : TODO: +++
 
         """
@@ -20,35 +19,38 @@ class CorpusSupportSets(nn.Module):
         self.semantic_dipoles_cls = semantic_dipoles_cls
         self.semantic_dipoles_means = semantic_dipoles_means
         self.semantic_dipoles_covariances = semantic_dipoles_covariances
-        self.gammas = gammas
         self.gamma_0 = gamma_0
-
-        ################################################################################################################
-        ##                                                                                                            ##
-        ##                                        [ Corpus Support Sets (CSS) ]                                       ##
-        ##                                                                                                            ##
-        ################################################################################################################
-
-        # TODO: `self.semantic_dipoles_features` --> `self.semantic_dipoles_features_cls`
 
         # Initialization
         self.semantic_dipoles_features_cls = self.semantic_dipoles_cls
         self.num_support_sets = self.semantic_dipoles_features_cls.shape[0]
         self.support_vectors_dim = self.semantic_dipoles_features_cls.shape[2]
 
-        # TODO: add comment
-        self.SEMANTIC_DIPOLES_FEATURES_CLS = nn.Parameter(data=self.semantic_dipoles_features_cls,
-                                                          requires_grad=False)
+        ############################################################################################################
+        ##                                                                                                        ##
+        ##                                [ Semantic Dipoles' VL (Text) Features ]                                ##
+        ##                                                                                                        ##
+        ############################################################################################################
+
+        ############################################################################################################
+        ##                             [ SEMANTIC_DIPOLES_FEATURES_CLS: (K, 2 * d) ]                              ##
+        ############################################################################################################
+        self.SEMANTIC_DIPOLES_FEATURES_CLS = nn.Parameter(
+            data=self.semantic_dipoles_features_cls.reshape(self.num_support_sets, 2 * self.support_vectors_dim),
+            requires_grad=False)
+
+        ############################################################################################################
+        ##                                                                                                        ##
+        ##                                          [ Warping Functions ]                                         ##
+        ##                                                                                                        ##
+        ############################################################################################################
 
         ############################################################################################################
         ##                                      [ SUPPORT_SETS: (K, 2, d) ]                                       ##
         ############################################################################################################
-        self.SUPPORT_SETS = nn.Parameter(data=torch.ones(self.num_support_sets, 2 * self.support_vectors_dim),
-                                         requires_grad=False)
-        # REVIEW: do I need to clone?
-        self.SUPPORT_SETS.data = self.semantic_dipoles_means.reshape(self.semantic_dipoles_means.shape[0],
-                                                                     self.semantic_dipoles_means.shape[1] *
-                                                                     self.semantic_dipoles_means.shape[2]).clone()
+        self.SUPPORT_SETS = nn.Parameter(
+            data=self.semantic_dipoles_means.reshape(self.num_support_sets, 2 * self.support_vectors_dim),
+            requires_grad=False)
 
         ############################################################################################################
         ##                                          [ ALPHAS: (K, 2) ]                                            ##
@@ -59,34 +61,30 @@ class CorpusSupportSets(nn.Module):
             self.ALPHAS.data[k] = torch.Tensor([1, -1])
 
         ############################################################################################################
-        ##                                          [ GAMMAS: (K, 2) ]                                            ##
+        ##                                        [ GAMMAS: (K, 2 * d) ]                                          ##
         ############################################################################################################
-        # Spherical gammas
-        if self.gammas == 'spherical':
-            self.LOGGAMMA = nn.Parameter(data=np.log(self.gamma_0) * torch.ones(self.num_support_sets, 2),
-                                         requires_grad=False)
-        # Diagonal gammas
-        elif self.gammas == 'diag':
-            # REVIEW: ================================================================================================ #
-            print("self.gamma_0: {}".format(self.gamma_0))
-            print("*** self.gamma_0 * self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
-            print("\tmin  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).min()))
-            print("\tmax  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).max()))
-            print("\tmean : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).mean()))
-            print("*** self.gamma_0 / self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
-            print("\tmin  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).min()))
-            print("\tmax  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).max()))
-            print("\tmean : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).mean()))
-            # sys.exit()
-            # REVIEW: ================================================================================================ #
+        # REVIEW: ================================================================================================ #
+        print("self.gamma_0: {}".format(self.gamma_0))
+        print(
+            "*** self.gamma_0 * self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+        print("\tmin  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).min()))
+        print("\tmax  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).max()))
+        print("\tmean : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).mean()))
+        print(
+            "*** self.gamma_0 / self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+        print("\tmin  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).min()))
+        print("\tmax  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).max()))
+        print("\tmean : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).mean()))
+        # sys.exit()
+        # REVIEW: ================================================================================================ #
 
-            # REVIEW: Use the variances as gammas
-            # semantic_dipoles_covariances = self.gamma_0 * self.semantic_dipoles_covariances
+        # REVIEW: Use the variances as gammas
+        # semantic_dipoles_covariances = self.gamma_0 * self.semantic_dipoles_covariances
+        semantic_dipoles_covariances = torch.div(self.gamma_0, self.semantic_dipoles_covariances)
 
-            semantic_dipoles_covariances = torch.div(self.gamma_0, self.semantic_dipoles_covariances)
-
-            semantic_dipoles_covariances = semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim)
-            self.LOGGAMMA = nn.Parameter(data=torch.log(semantic_dipoles_covariances), requires_grad=False)
+        self.LOGGAMMA = nn.Parameter(
+            data=torch.log(semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim)),
+            requires_grad=False)
 
     @staticmethod
     def orthogonal_projection(s, w):
@@ -152,26 +150,15 @@ class CorpusSupportSets(nn.Module):
         # Get batch of RBF alpha parameters
         alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
 
-        grad_f = None
-        if self.gammas == 'spherical':
-            # Get batch of RBF gamma/log(gamma) parameters
-            gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA).unsqueeze(dim=2))
+        # Get batch of RBF gamma/log(gamma) parameters
+        gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
+            -1, 2, self.support_vectors_dim)
 
-            # Calculate grad of f at z
-            D = z.unsqueeze(dim=1) - support_sets_batch
-            grad_f = -2 * (alphas_batch * gammas_batch *
-                           torch.exp(-gammas_batch * (torch.norm(D, dim=2) ** 2).unsqueeze(dim=2)) * D).sum(dim=1)
-
-        elif self.gammas == 'diag':
-            # Get batch of RBF gamma/log(gamma) parameters
-            gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
-                -1, 2, self.support_vectors_dim)
-
-            # Calculate grad of f at z
-            D = z.unsqueeze(dim=1) - support_sets_batch
-            SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
-            SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
-            grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
+        # Calculate grad of f at z
+        D = z.unsqueeze(dim=1) - support_sets_batch
+        SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
+        SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
+        grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
 
         # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
         # grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))

@@ -14,8 +14,7 @@ def main():
     Options:
         === [Experiment ID] ============================================================================================
         --exp-id                     : optional experiment id string
-        TODO:
-            --exp-subdir                 : optional subdirectory under experiments/complete/
+        --exp-subdir                 : optional subdirectory under experiments/complete/
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
         --stylegan-space             : set StyleGAN's latent space (Z, W, W+, S) to look for interpretable paths
@@ -30,8 +29,6 @@ def main():
                                        in natural language) by giving a key of the dictionary SEMANTIC_DIPOLES_CORPORA
                                        found in lib/config.py. You may define new corpora of semantic dipoles following
                                        the given format
-        --gammas                     : type of gamma parameters of the RBFs' in the Vision-Language space
-                                       ('diag', 'spherical')
         --gamma-0                    : set initial gamma parameter
         TODO:
         --vl-sim                     : type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')
@@ -61,6 +58,7 @@ def main():
 
     # === Experiment ID ============================================================================================== #
     parser.add_argument('--exp-id', type=str, help="aux experiment ID")
+    parser.add_argument('--exp-subdir', type=str, help="optional subdirectory under experiments/complete/")
 
     # === Pre-trained GAN Generator (G) ============================================================================== #
     parser.add_argument('--gan', type=str, choices=GENFORCE_MODELS.keys(), help='GAN generator model')
@@ -74,14 +72,12 @@ def main():
     parser.add_argument('--vl-model', type=str, default='clip', choices=('clip', 'farl'), help="Vision-Language model")
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
-    parser.add_argument('--gammas', type=str, default='diag', choices=('diag', 'spherical'),
-                        help="type of VL RBF gammas")
-    parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
     parser.add_argument('--vl-sim', type=str, default='proposed-warping',
                         choices=('standard', 'proposed-no-warping', 'proposed-warping', 'proposed-warping-aux'),
                         help="type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')")
     parser.add_argument('--include-cls-in-mean', action='store_true',
                         help="include the CLS token into calculating text features statistics")
+    parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--tied', action='store_true', help="set support set dipoles in tied mode")
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
@@ -198,14 +194,12 @@ def main():
     print("  \\__Number of corpus support dipoles : {}".format(1))
     print("  \\__args.include_cls_in_mean         : {}".format(args.include_cls_in_mean))
     print("  \\__Prompt features dim              : {}".format(sd.dim))
-    print("  \\__RBF gammas type                  : {}".format(args.gammas))
     print("  \\__RBF gamma_0                      : {}".format(args.gamma_0))
     print("  \\__Vision-Language similarity       : {}".format(args.vl_sim))
 
     CSS = CorpusSupportSets(semantic_dipoles_cls=semantic_dipoles_cls,
                             semantic_dipoles_means=semantic_dipoles_means,
                             semantic_dipoles_covariances=semantic_dipoles_covariances,
-                            gammas=args.gammas,
                             gamma_0=args.gamma_0)
 
     # Count number of trainable parameters
@@ -249,7 +243,7 @@ def main():
 
     # Set up trainer
     print("#. Experiment: {}".format(exp_dir))
-    t = Trainer(params=args, exp_dir=exp_dir, use_cuda=use_cuda, multi_gpu=multi_gpu)
+    t = Trainer(params=args, exp_dir=exp_dir, exp_subdir=args.exp_subdir, use_cuda=use_cuda, multi_gpu=multi_gpu)
 
     # Train
     t.train(generator=G, latent_support_sets=LSS, corpus_support_sets=CSS, clip_model=clip_model,
