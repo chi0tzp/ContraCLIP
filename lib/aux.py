@@ -28,23 +28,32 @@ def create_exp_dir(args):
 
     """
     exp_dir = 'Contra{}'.format('FaRL'if args.vl_model == 'farl' else 'CLIP')
-    exp_dir += '-{}'.format(args.vl_paths)
-
-    if args.vl_paths == 'proposed':
-        exp_dir += "-gamma_0_{}".format(args.gamma_0)
-    exp_dir += '-{}'.format(args.gan)
+    # === GAN type ===
+    exp_dir += '@{}'.format(args.gan)
     if 'stylegan' in args.gan:
         exp_dir += '-{}'.format(args.stylegan_space)
         if args.stylegan_space == 'W+':
             exp_dir += "{}".format(args.stylegan_layer)
     else:
         exp_dir += '-Z'
+
+    # === VL similarity ===
+    exp_dir += '-{}'.format(args.vl_sim)
+    if args.vl_sim == 'proposed-warping':
+        exp_dir += '@MUT'
+        if args.include_cls_in_mean:
+            exp_dir += '+CLS'
+        exp_dir += "-gamma0_{}".format(args.gamma_0)
+
+    # === LSS ===
     exp_dir += '-K{}-D{}'.format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
-    if args.tied:
-        exp_dir += '-tied'
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
+
+    # === ID Loss ===
     if args.id:
         exp_dir += '+{}xID'.format(args.lambda_id)
+
+    # === Contrastive loss temperature tau ===
     exp_dir += "-tau_{}".format(args.temperature)
     exp_dir += "-lr_{}".format(args.lr)
     exp_dir += '-iter_{}'.format(args.max_iter)

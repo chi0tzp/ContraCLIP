@@ -32,7 +32,9 @@ def main():
         --gammas                     : type of gamma parameters of the RBFs' in the Vision-Language space
                                        ('diag', 'spherical')
         --gamma-0                    : set initial gamma parameter
-        --vl-paths                   : type of paths in the Vision-Language space ('standard', 'proposed')
+        TODO:
+        --vl-sim                     : type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')
+        --include-cls-in-mean        : include the CLS token into calculating text features statistics
 
         ===[ Latent Support Sets (LSS) ]================================================================================
         --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
@@ -74,9 +76,11 @@ def main():
     parser.add_argument('--gammas', type=str, default='diag', choices=('diag', 'spherical'),
                         help="type of VL RBF gammas")
     parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
-    parser.add_argument('--vl-paths', type=str, default='proposed', choices=('standard', 'proposed'),
-                        help="TODO")
-
+    parser.add_argument('--vl-sim', type=str, default='proposed-warping',
+                        choices=('standard', 'proposed-no-warping', 'proposed-warping', 'proposed-warping-aux'),
+                        help="type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')")
+    parser.add_argument('--include-cls-in-mean', action='store_true',
+                        help="include the CLS token into calculating text features statistics")
     # === Latent Support Sets (LSS) ================================================================================== #
     parser.add_argument('--tied', action='store_true', help="set support set dipoles in tied mode")
     parser.add_argument('--num-latent-support-dipoles', type=int, help="number of latent support dipoles / support set")
@@ -172,9 +176,12 @@ def main():
     clip_model.float()
     clip_model.eval()
 
-    # Get CLIP (normalized) text features for the semantic dipoles of the given corpus
-    sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus], clip_model=clip_model, use_cuda=use_cuda)
-    semantic_dipoles_features, semantic_dipoles_covariances = sd.get_dipole_features()
+    # Get VL text features, means and covariances calculated on the tokens for the semantic dipoles of the given corpus
+    sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus],
+                         clip_model=clip_model,
+                         include_cls_in_mean=args.include_cls_in_mean,
+                         use_cuda=use_cuda)
+    semantic_dipoles_cls, semantic_dipoles_means, semantic_dipoles_covariances = sd.get_dipole_features()
 
     # Experiment preprocessing
     exp_preprocessor = ExpPreprocess(gan_type=args.gan, gan_generator=G, stylegan_space=args.stylegan_space,
@@ -188,12 +195,14 @@ def main():
     print("#. Build Corpus Support Sets CSS...")
     print("  \\__Number of corpus support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of corpus support dipoles : {}".format(1))
+    print("  \\__args.include_cls_in_mean         : {}".format(args.include_cls_in_mean))
     print("  \\__Prompt features dim              : {}".format(sd.dim))
     print("  \\__RBF gammas type                  : {}".format(args.gammas))
     print("  \\__RBF gamma_0                      : {}".format(args.gamma_0))
-    print("  \\__Vision-Language path type        : {}".format(args.vl_paths))
+    print("  \\__Vision-Language similarity       : {}".format(args.vl_sim))
 
-    CSS = CorpusSupportSets(semantic_dipoles_features=semantic_dipoles_features,
+    CSS = CorpusSupportSets(semantic_dipoles_cls=semantic_dipoles_cls,
+                            semantic_dipoles_means=semantic_dipoles_means,
                             semantic_dipoles_covariances=semantic_dipoles_covariances,
                             gammas=args.gammas,
                             gamma_0=args.gamma_0)

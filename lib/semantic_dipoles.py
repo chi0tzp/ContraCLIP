@@ -4,10 +4,11 @@ import clip
 
 
 class SemanticDipoles:
-    def __init__(self, corpus, clip_model, use_cuda):
+    def __init__(self, corpus, clip_model, use_cuda, include_cls_in_mean=False):
         self.corpus = corpus
         self.use_cuda = use_cuda
         self.clip_model = clip_model.to('cuda' if self.use_cuda else 'cpu')
+        self.include_cls_in_mean = include_cls_in_mean
         self.num_dipoles = len(self.corpus)
         self.dim = 512
 
@@ -56,58 +57,28 @@ class SemanticDipoles:
 
     def get_dipole_features(self):
         # Get CLIP text features for the given dipoles
-        dipole_features = []
-        dipole_covariances = []
+
+        # TODO: rename `dipole_features` --> `dipole_features_cls`
+        # TODO: add `dipole_features_tav`
+
+        # Dipoles' features taken at the CLS (EOS / End of Sentence) token position
+        dipole_features_cls = []
+
+        # Dipoles' features averaged at all token positions -- REVIEW: all but CLS, or all tokens?
+        dipole_features_token_mean = []
+
+        # Dipoles' features' covariances calculated over all token positions -- REVIEW: all but CLS, or all tokens?
+        dipole_features_token_cov = []
+
         for t in range(self.num_dipoles):
             # Get dipole's CLIP text representations
-            dipole_features_ = self.clip_model.encode_text(
+            dipole_features_at_cls = self.clip_model.encode_text(
                 clip.tokenize(self.corpus[t]).to('cuda' if self.use_cuda else 'cpu'))
 
             # Normalize dipole's features
-            dipole_features_ /= torch.norm(dipole_features_, dim=1, keepdim=True)
-            dipole_features.append(dipole_features_.unsqueeze(0))
+            dipole_features_at_cls /= torch.norm(dipole_features_at_cls, dim=1, keepdim=True)
+            dipole_features_cls.append(dipole_features_at_cls.unsqueeze(0))
 
-            # pass
-            # # Get sample (token) covariances for the dipole
-            # tokenized_dipole = clip.tokenize(self.corpus[t])
-            #
-            # # Get CLS / EOS (EndOfSentence) token position
-            # cls_positions = tokenized_dipole.argmax(dim=-1)
-            # dipole_embeddings = self.clip_model.token_embedding(tokenized_dipole).type(self.clip_model.dtype)
-            #
-            # # Get dipole token representations
-            # x = dipole_embeddings + self.positional_embedding.type(self.clip_model.dtype)
-            # x = x.permute(1, 0, 2)  # NLD -> LND
-            # x = self.transformer(x)
-            # x = x.permute(1, 0, 2)  # LND -> NLD
-            # x = self.ln_final(x).type(self.clip_model.dtype)
-            #
-            # positive_pole_token_representations = []
-            # negative_pole_token_representations = []
-            # for token_position in range(1, cls_positions.max() + 1):
-            #     token_representations = x[torch.arange(x.shape[0]), token_position] @ self.text_projection
-            #     if token_position <= cls_positions[0] - 1:
-            #         positive_pole_token_representations.append(token_representations[0].unsqueeze(0))
-            #     if token_position <= cls_positions[1] - 1:
-            #         negative_pole_token_representations.append(token_representations[1].unsqueeze(0))
-            # positive_pole_token_representations = torch.cat(positive_pole_token_representations, dim=0)
-            # negative_pole_token_representations = torch.cat(negative_pole_token_representations, dim=0)
-            #
-            # # Normalise dipole token representations
-            # positive_pole_token_representations = positive_pole_token_representations / \
-            #     torch.norm(positive_pole_token_representations, dim=1, keepdim=True)
-            # negative_pole_token_representations = negative_pole_token_representations / \
-            #     torch.norm(negative_pole_token_representations, dim=1, keepdim=True)
-            #
-            # # Get the logarithmic map of the (normalised) token representations onto the tangent space at the CLS dipole
-            # # representations
-            # positive_pole_token_representations = self.logarithmic_map(s=dipole_features_[0].unsqueeze(0),
-            #                                                            q=positive_pole_token_representations)
-            # negative_pole_token_representations = self.logarithmic_map(s=dipole_features_[1].unsqueeze(0),
-            #                                                            q=negative_pole_token_representations)
-            # pass
-
-            pass
             # Get sample (token) covariances for the dipole
             tokenized_dipole = clip.tokenize(self.corpus[t])
 
@@ -122,13 +93,18 @@ class SemanticDipoles:
             x = x.permute(1, 0, 2)  # LND -> NLD
             x = self.ln_final(x).type(self.clip_model.dtype)
 
+            # Include CLS token?
+            stop_position = 0
+            if not self.include_cls_in_mean:
+                stop_position = 1
+
             positive_pole_token_representations = []
             negative_pole_token_representations = []
             for token_position in range(1, cls_positions.max() + 1):
                 token_representations = x[torch.arange(x.shape[0]), token_position] @ self.text_projection
-                if token_position <= cls_positions[0] - 1:
+                if token_position <= cls_positions[0] - stop_position:
                     positive_pole_token_representations.append(token_representations[0].unsqueeze(0))
-                if token_position <= cls_positions[1] - 1:
+                if token_position <= cls_positions[1] - stop_position:
                     negative_pole_token_representations.append(token_representations[1].unsqueeze(0))
             positive_pole_token_representations = torch.cat(positive_pole_token_representations, dim=0)
             negative_pole_token_representations = torch.cat(negative_pole_token_representations, dim=0)
@@ -142,6 +118,10 @@ class SemanticDipoles:
             negative_pole_token_representations_mean = negative_pole_token_representations.mean(dim=0).unsqueeze(0)
             negative_pole_token_representations_mean = negative_pole_token_representations_mean / \
                 torch.norm(negative_pole_token_representations_mean, dim=1, keepdim=True)
+
+            # TODO: add comment
+            dipole_features_token_mean.append(torch.cat([positive_pole_token_representations_mean,
+                                                         negative_pole_token_representations_mean], dim=0).unsqueeze(0))
 
             # Normalise dipole token representations
             positive_pole_token_representations = positive_pole_token_representations / \
@@ -160,8 +140,10 @@ class SemanticDipoles:
             positive_pole_token_representations_cov_diag = torch.diag(torch.cov(positive_pole_token_representations.T))
             negative_pole_token_representations_cov_diag = torch.diag(torch.cov(negative_pole_token_representations.T))
 
-            dipole_covariances.append(torch.cat([positive_pole_token_representations_cov_diag.unsqueeze(0),
-                                                 negative_pole_token_representations_cov_diag.unsqueeze(0)],
-                                                dim=0).unsqueeze(0))
+            dipole_features_token_cov.append(torch.cat([positive_pole_token_representations_cov_diag.unsqueeze(0),
+                                                        negative_pole_token_representations_cov_diag.unsqueeze(0)],
+                                                       dim=0).unsqueeze(0))
 
-        return torch.cat(dipole_features, dim=0), torch.cat(dipole_covariances, dim=0)
+        return torch.cat(dipole_features_cls, dim=0), \
+            torch.cat(dipole_features_token_mean, dim=0), \
+            torch.cat(dipole_features_token_cov, dim=0)
