@@ -3,8 +3,6 @@ import os.path as osp
 import torch
 import clip
 from lib import *
-from lib import GENFORCE_MODELS, STYLEGAN_LAYERS, SEMANTIC_DIPOLES_CORPORA, STYLEGAN2_STYLE_SPACE_TARGET_LAYERS, \
-    FARL_PRETRAIN_MODEL
 from models.load_generator import load_generator
 
 
@@ -175,6 +173,7 @@ def main():
 
     # Get VL text features, means and covariances calculated on the tokens for the semantic dipoles of the given corpus
     sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus],
+                         corpus_no_stop_words=SEMANTIC_DIPOLES_CORPORA_NO_STOP_WORDS[args.corpus],
                          clip_model=clip_model,
                          include_cls_in_mean=args.include_cls_in_mean,
                          use_cuda=use_cuda)

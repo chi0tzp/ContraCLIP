@@ -47,8 +47,12 @@ class CorpusSupportSets(nn.Module):
         ############################################################################################################
         ##                                      [ SUPPORT_SETS: (K, 2, d) ]                                       ##
         ############################################################################################################
+        # REVIEW: take the mean to CLS features
+        # self.SUPPORT_SETS = nn.Parameter(
+        #     data=self.semantic_dipoles_means.reshape(self.num_support_sets, 2 * self.support_vectors_dim),
+        #     requires_grad=False)
         self.SUPPORT_SETS = nn.Parameter(
-            data=self.semantic_dipoles_means.reshape(self.num_support_sets, 2 * self.support_vectors_dim),
+            data=self.semantic_dipoles_features_cls.reshape(self.num_support_sets, 2 * self.support_vectors_dim),
             requires_grad=False)
 
         ############################################################################################################
@@ -63,14 +67,22 @@ class CorpusSupportSets(nn.Module):
         ##                                        [ GAMMAS: (K, 2 * d) ]                                          ##
         ############################################################################################################
         # REVIEW: ================================================================================================ #
+        # import matplotlib.pyplot as plt
+        # kwargs = dict(alpha=0.5, bins=100, density=True, stacked=True)
+        # dipole_idx = 0
+        # semantic_dipoles_covariances = torch.div(1, semantic_dipoles_covariances)
+        # plt.hist(semantic_dipoles_covariances[dipole_idx, 0, :].cpu().detach().numpy(), **kwargs, color='g', label='Positive')
+        # plt.hist(semantic_dipoles_covariances[dipole_idx, 1, :].cpu().detach().numpy(), **kwargs, color='r', label='Negative')
+        # plt.show()
+
         print("self.gamma_0: {}".format(self.gamma_0))
         print(
-            "*** self.gamma_0 * self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+            "*** self.gamma_0 * self.semantic_dipoles_covariances {} ***".format(self.semantic_dipoles_covariances.shape))
         print("\tmin  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).min()))
         print("\tmax  : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).max()))
         print("\tmean : {}".format((self.gamma_0 * self.semantic_dipoles_covariances).mean()))
         print(
-            "*** self.gamma_0 / self.semantic_dipoles_covariances ***".format(self.semantic_dipoles_covariances.shape))
+            "*** self.gamma_0 / self.semantic_dipoles_covariances {} ***".format(self.semantic_dipoles_covariances.shape))
         print("\tmin  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).min()))
         print("\tmax  : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).max()))
         print("\tmean : {}".format(torch.div(self.gamma_0, self.semantic_dipoles_covariances).mean()))
@@ -160,9 +172,6 @@ class CorpusSupportSets(nn.Module):
         grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
 
         # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
-        # grad_f = self.orthogonal_projection(s=z, w=grad_f / torch.norm(grad_f, dim=1, keepdim=True))
         grad_f = self.orthogonal_projection(s=z, w=grad_f)
-
-        # grad_f = grad_f / torch.norm(grad_f, dim=1, keepdim=True)
 
         return grad_f

@@ -39,7 +39,7 @@ def create_exp_dir(args):
 
     # === VL similarity ===
     exp_dir += '-{}'.format(args.vl_sim)
-    if args.vl_sim == 'proposed-warping':
+    if 'proposed' in args.vl_sim:
         exp_dir += '@MUT'
         if args.include_cls_in_mean:
             exp_dir += '+CLS'
@@ -78,11 +78,12 @@ def create_exp_dir(args):
 
 class TrainingStatTracker(object):
     def __init__(self):
-        self.stat_tracker = {'loss': [], 'loss_id': []}
+        self.stat_tracker = {'loss': [], 'loss_id': [], 'loss_w': []}
 
-    def update(self, loss, loss_id=None):
+    def update(self, loss, loss_id=None, loss_w=None):
         self.stat_tracker['loss'].append(float(loss))
         self.stat_tracker['loss_id'].append(float(loss_id))
+        self.stat_tracker['loss_w'].append(float(loss_w))
 
     def get_means(self):
         stat_means = dict()

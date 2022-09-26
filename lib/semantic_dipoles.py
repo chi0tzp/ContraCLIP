@@ -4,8 +4,9 @@ import clip
 
 
 class SemanticDipoles:
-    def __init__(self, corpus, clip_model, use_cuda, include_cls_in_mean=False):
+    def __init__(self, corpus, corpus_no_stop_words, clip_model, use_cuda, include_cls_in_mean=False):
         self.corpus = corpus
+        self.corpus_no_stop_words = corpus_no_stop_words
         self.use_cuda = use_cuda
         self.clip_model = clip_model.to('cuda' if self.use_cuda else 'cpu')
         self.include_cls_in_mean = include_cls_in_mean
@@ -58,19 +59,22 @@ class SemanticDipoles:
     def get_dipole_features(self):
         # Get CLIP text features for the given dipoles
 
-        # TODO: rename `dipole_features` --> `dipole_features_cls`
-        # TODO: add `dipole_features_tav`
-
         # Dipoles' features taken at the CLS (EOS / End of Sentence) token position
         dipole_features_cls = []
 
-        # Dipoles' features averaged at all token positions -- REVIEW: all but CLS, or all tokens?
+        # Dipoles' features averaged over all tokens (including CLS if `self.include_cls_in_mean`)
         dipole_features_token_mean = []
 
-        # Dipoles' features' covariances calculated over all token positions -- REVIEW: all but CLS, or all tokens?
+        # Dipoles' features covariances calculated over all tokens (including CLS if `self.include_cls_in_mean`)
         dipole_features_token_cov = []
-
         for t in range(self.num_dipoles):
+
+            ############################################################################################################
+            ##                                                                                                        ##
+            ##                                       [ Features taken at CLS ]                                        ##
+            ##                                                                                                        ##
+            ############################################################################################################
+
             # Get dipole's CLIP text representations
             dipole_features_at_cls = self.clip_model.encode_text(
                 clip.tokenize(self.corpus[t]).to('cuda' if self.use_cuda else 'cpu'))
@@ -79,8 +83,17 @@ class SemanticDipoles:
             dipole_features_at_cls /= torch.norm(dipole_features_at_cls, dim=1, keepdim=True)
             dipole_features_cls.append(dipole_features_at_cls.unsqueeze(0))
 
+            ############################################################################################################
+            ##                                                                                                        ##
+            ##                                [ Features statistics over all tokens ]                                 ##
+            ##                                                                                                        ##
+            ############################################################################################################
+
             # Get sample (token) covariances for the dipole
+
+            # REVIEW: calculate statistics after removing stop words from the corpus
             tokenized_dipole = clip.tokenize(self.corpus[t])
+            # tokenized_dipole = clip.tokenize(self.corpus_no_stop_words[t])
 
             # Get CLS / EOS (EndOfSentence) token position
             cls_positions = tokenized_dipole.argmax(dim=-1)
