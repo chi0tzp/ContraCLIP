@@ -185,6 +185,7 @@ def main():
     gan = args_json.__dict__["gan"]
     stylegan_space = args_json.__dict__["stylegan_space"]
     stylegan_layer = args_json.__dict__["stylegan_layer"] if "stylegan_layer" in args_json.__dict__ else None
+    num_latent_support_dipoles = args_json.__dict__["num_latent_support_dipoles"]
     truncation = args_json.__dict__["truncation"]
 
     # TODO: Check if `--w-space` is valid
@@ -243,8 +244,8 @@ def main():
         print("  \\__Pre-trained weights: {}".format(GENFORCE_MODELS[gan][0]))
 
     G = load_generator(model_name=gan,
-                       latent_is_w=('stylegan' in gan) and ('W' in args_json.__dict__["stylegan_space"]),
-                       latent_is_s=('stylegan' in gan) and args_json.__dict__["stylegan_space"] == 'S',
+                       latent_is_w=('stylegan' in gan) and ('W' in stylegan_space),
+                       latent_is_s=('stylegan' in gan) and (stylegan_space == 'S'),
                        verbose=args.verbose).eval()
 
     # Upload GAN generator model to GPU
@@ -256,37 +257,36 @@ def main():
         G = DataParallelPassthrough(G)
 
     # Build latent support sets model LSS
+    num_of_lss_models = 1
+    if ('stylegan' in gan) and (stylegan_space == 'W+'):
+        num_of_lss_models = stylegan_layer
     if args.verbose:
-        print("#. Build Latent Support Sets model LSS...")
+        print("#. Build {} Latent Support Sets model(s) LSS...".format(num_of_lss_models))
 
-    # Get support vector dimensionality
-    support_vectors_dim = G.dim_z
-    if 'stylegan' in gan:
-        if stylegan_space == 'W+':
-            support_vectors_dim *= (stylegan_layer + 1)
-        elif stylegan_space == 'S':
-            support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()))
+    # TODO: add comment
+    # latent_support_sets_model = torch.load(latent_support_sets_model)
+    latent_support_sets_model_dicts = torch.load(latent_support_sets_model, map_location=lambda storage, loc: storage)
 
-    LSS = LatentSupportSets(num_support_sets=len(semantic_dipoles),
-                            num_support_dipoles=args_json.__dict__["num_latent_support_dipoles"],
-                            support_vectors_dim=support_vectors_dim,
-                            latent_centre=torch.zeros(support_vectors_dim),
-                            jung_radius=1)
+    LSS = []
+    for layer_idx in range(num_of_lss_models):
+        LSS.append(LatentSupportSets(num_support_sets=len(semantic_dipoles),
+                                     num_support_dipoles=num_latent_support_dipoles,
+                                     support_vectors_dim=G.dim_z,
+                                     latent_centre=torch.zeros(G.dim_z),
+                                     jung_radius=1.0))
 
     # Load pre-trained weights and set to evaluation mode
     if args.verbose:
         print("  \\__Pre-trained weights: {}".format(latent_support_sets_model))
-    LSS.load_state_dict(torch.load(latent_support_sets_model, map_location=lambda storage, loc: storage))
-    if args.verbose:
-        print("  \\__Set to evaluation mode")
-    LSS.eval()
 
-    # Upload support sets model to GPU
-    if use_cuda:
-        LSS = LSS.cuda()
+    for layer_idx in range(num_of_lss_models):
+        LSS[layer_idx].load_state_dict(latent_support_sets_model_dicts['layer_{}'.format(layer_idx)])
+        LSS[layer_idx].eval()
+        if use_cuda:
+            LSS[layer_idx] = LSS[layer_idx].cuda()
 
     # Set number of generative paths
-    num_gen_paths = LSS.num_support_sets
+    num_gen_paths = len(semantic_dipoles)
 
     # Create output dir for generated images
     out_dir = osp.join(args.exp, 'results', args.pool + model_iter,
@@ -412,6 +412,7 @@ def main():
                     current_path_latent_shifts = [torch.zeros_like(latent_code).cuda() if use_cuda
                                                   else torch.zeros_like(latent_code)]
                 elif stylegan_space == 'W+':
+                    # REVIEW: do I need truncation here?
                     latent_code = G.get_w(x_, truncation=truncation)
                     current_path_latent_codes = [latent_code]
                     current_path_latent_shifts = [torch.zeros_like(latent_code).cuda() if use_cuda
@@ -451,28 +452,18 @@ def main():
                 cnt += 1
 
                 # Calculate shift vector based on current z
-                support_sets_mask = torch.zeros(1, LSS.num_support_sets)
+                support_sets_mask = torch.zeros(1, len(semantic_dipoles))
                 support_sets_mask[0, dim] = 1.0
                 if use_cuda:
                     support_sets_mask.cuda()
 
                 # REVIEW
                 if 'stylegan' in gan:
-                    # === StyleGAN on Z-space ===
-                    if stylegan_space == 'Z':
-                        # Calculate shift vector based on the given z code
-                        with torch.no_grad():
-                            shift = args.eps * LSS(support_sets_mask, latent_code)
-                        # REVIEW:
-                        current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
-                        # Calculate shifted latent code
-                        latent_code = latent_code + shift
                     # === StyleGAN on W-space ===
-                    elif stylegan_space == 'W':
+                    if stylegan_space == 'W':
                         # Calculate shift vector based on the given w code
                         with torch.no_grad():
-                            shift = args.eps * LSS(support_sets_mask, latent_code)
+                            shift = args.eps * LSS[0](support_sets_mask, latent_code)
                         # REVIEW:
                         current_path_latent_code = latent_code
                         current_path_latent_shift = shift
@@ -480,55 +471,76 @@ def main():
                         latent_code = latent_code + shift
                     # === StyleGAN on W+-space ===
                     elif stylegan_space == 'W+':
-                        # Calculate shift vector based on the given w+ code, only on the selected layers (i.e., on the
-                        # first stylegan_layer + 1 layers)
-                        with torch.no_grad():
-                            shift = args.eps * LSS(support_sets_mask, latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
-                            shift = F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
-                                          mode='constant', value=0).reshape_as(latent_code)
-                        # REVIEW:
+                        # Split layers' codes
+                        latent_code_layers_tuple = torch.split(tensor=latent_code,
+                                                               split_size_or_sections=latent_code.shape[1] * [1],
+                                                               dim=1)
+                        # Find shift per layer
+                        latent_shift = []
+                        for layer_idx in range(STYLEGAN_LAYERS[gan]):
+                            if layer_idx < stylegan_layer:
+                                layer_shift = args.eps * LSS[layer_idx](support_sets_mask,
+                                                                        latent_code_layers_tuple[layer_idx].squeeze(1))
+                                latent_shift.append(layer_shift.unsqueeze(1))
+                            else:
+                                latent_shift.append(torch.zeros(latent_code.shape[0], 1, latent_code.shape[2]))
+                        latent_shift = torch.cat(latent_shift, dim=1).to('cuda' if use_cuda else 'cpu')
+
                         current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
+                        current_path_latent_shift = latent_shift
                         # Calculate shifted latent code
-                        latent_code = latent_code + shift
+                        latent_code = latent_code + latent_shift
+
+                        # # Calculate shift vector based on the given w+ code, only on the selected layers (i.e., on the
+                        # # first stylegan_layer + 1 layers)
+                        # with torch.no_grad():
+                        #     shift = args.eps * LSS(support_sets_mask, latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0], -1))
+                        #     shift = F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
+                        #                   mode='constant', value=0).reshape_as(latent_code)
+                        # # REVIEW:
+                        # current_path_latent_code = latent_code
+                        # current_path_latent_shift = shift
+                        # # Calculate shifted latent code
+                        # latent_code = latent_code + shift
                     # === StyleGAN on S-space ===
                     elif stylegan_space == 'S':
-                        # Calculate shift vector based on the given s code (styles dictionary), only on the target
-                        # layers (i.e., those defined by STYLEGAN2_STYLE_SPACE_TARGET_LAYERS for the given GAN)
-                        shift_target_styles_vector = args.eps * LSS(support_sets_mask, torch.cat(
-                            [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1))
-                        shift_target_styles_tuple = torch.split(
-                            tensor=shift_target_styles_vector,
-                            split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
-                            dim=1)
-                        latent_code_target_styles_vector = torch.cat(
-                            [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1)
-                        latent_code_target_styles_vector = latent_code_target_styles_vector + shift_target_styles_vector
-                        latent_code_target_styles_tuple = torch.split(
-                            tensor=latent_code_target_styles_vector,
-                            split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
-                            dim=1)
-                        shift = dict()
-                        latent_code_shifted = dict()
-                        style_cnt = 0
-                        for k, v in latent_code.items():
-                            if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan]:
-                                latent_code_shifted.update({k: latent_code_target_styles_tuple[style_cnt]})
-                                shift.update({k: shift_target_styles_tuple[style_cnt]})
-                                style_cnt += 1
-                            else:
-                                latent_code_shifted.update({k: latent_code[k]})
-                                shift.update({k: torch.zeros_like(latent_code[k])})
-                        # REVIEW:
-                        current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
-                        # Calculate shifted latent code
-                        latent_code = latent_code_shifted
+                        raise NotImplementedError
+                        # # Calculate shift vector based on the given s code (styles dictionary), only on the target
+                        # # layers (i.e., those defined by STYLEGAN2_STYLE_SPACE_TARGET_LAYERS for the given GAN)
+                        # shift_target_styles_vector = args.eps * LSS(support_sets_mask, torch.cat(
+                        #     [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1))
+                        # shift_target_styles_tuple = torch.split(
+                        #     tensor=shift_target_styles_vector,
+                        #     split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
+                        #     dim=1)
+                        # latent_code_target_styles_vector = torch.cat(
+                        #     [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1)
+                        # latent_code_target_styles_vector = latent_code_target_styles_vector + shift_target_styles_vector
+                        # latent_code_target_styles_tuple = torch.split(
+                        #     tensor=latent_code_target_styles_vector,
+                        #     split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
+                        #     dim=1)
+                        # shift = dict()
+                        # latent_code_shifted = dict()
+                        # style_cnt = 0
+                        # for k, v in latent_code.items():
+                        #     if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan]:
+                        #         latent_code_shifted.update({k: latent_code_target_styles_tuple[style_cnt]})
+                        #         shift.update({k: shift_target_styles_tuple[style_cnt]})
+                        #         style_cnt += 1
+                        #     else:
+                        #         latent_code_shifted.update({k: latent_code[k]})
+                        #         shift.update({k: torch.zeros_like(latent_code[k])})
+                        # # REVIEW:
+                        # current_path_latent_code = latent_code
+                        # current_path_latent_shift = shift
+                        # # Calculate shifted latent code
+                        # latent_code = latent_code_shifted
 
                 else:
                     # Calculate shift vector based on the given z-code
                     with torch.no_grad():
-                        shift = args.eps * LSS(support_sets_mask, latent_code)
+                        shift = args.eps * LSS[0](support_sets_mask, latent_code)
                     # REVIEW:
                     current_path_latent_code = latent_code
                     current_path_latent_shift = shift
@@ -561,28 +573,18 @@ def main():
                 cnt += 1
 
                 # Calculate shift vector based on current z
-                support_sets_mask = torch.zeros(1, LSS.num_support_sets)
+                support_sets_mask = torch.zeros(1, len(semantic_dipoles))
                 support_sets_mask[0, dim] = 1.0
                 if use_cuda:
                     support_sets_mask.cuda()
 
                 # REVIEW
                 if 'stylegan' in gan:
-                    # === StyleGAN on Z-space ===
-                    if stylegan_space == 'Z':
-                        # Calculate shift vector based on the given z code
-                        with torch.no_grad():
-                            shift = -args.eps * LSS(support_sets_mask, latent_code)
-                        # REVIEW:
-                        current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
-                        # Calculate shifted latent code
-                        latent_code = latent_code + shift
                     # === StyleGAN on W-space ===
-                    elif stylegan_space == 'W':
+                    if stylegan_space == 'W':
                         # Calculate shift vector based on the given w code
                         with torch.no_grad():
-                            shift = -args.eps * LSS(support_sets_mask, latent_code)
+                            shift = -args.eps * LSS[0](support_sets_mask, latent_code)
                         # REVIEW:
                         current_path_latent_code = latent_code
                         current_path_latent_shift = shift
@@ -590,57 +592,79 @@ def main():
                         latent_code = latent_code + shift
                     # === StyleGAN on W+-space ===
                     elif stylegan_space == 'W+':
-                        # Calculate shift vector based on the given w+ code, only on the selected layers (i.e., on the
-                        # first stylegan_layer + 1 layers)
-                        with torch.no_grad():
-                            shift = -args.eps * LSS(support_sets_mask,
-                                                    latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0],
-                                                                                                   -1))
-                            shift = F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
-                                          mode='constant', value=0).reshape_as(latent_code)
-                        # REVIEW:
+                        # Split layers' codes
+                        latent_code_layers_tuple = torch.split(tensor=latent_code,
+                                                               split_size_or_sections=latent_code.shape[1] * [1],
+                                                               dim=1)
+                        # Find shift per layer
+                        latent_shift = []
+                        for layer_idx in range(STYLEGAN_LAYERS[gan]):
+                            if layer_idx < stylegan_layer:
+                                layer_shift = -args.eps * LSS[layer_idx](support_sets_mask,
+                                                                         latent_code_layers_tuple[layer_idx].squeeze(1))
+                                latent_shift.append(layer_shift.unsqueeze(1))
+                            else:
+                                latent_shift.append(torch.zeros(latent_code.shape[0], 1, latent_code.shape[2]))
+                        latent_shift = torch.cat(latent_shift, dim=1).to('cuda' if use_cuda else 'cpu')
+
                         current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
+                        current_path_latent_shift = latent_shift
                         # Calculate shifted latent code
-                        latent_code = latent_code + shift
+                        latent_code = latent_code + latent_shift
+
+                        # sys.exit()
+                        # # Calculate shift vector based on the given w+ code, only on the selected layers (i.e., on the
+                        # # first stylegan_layer + 1 layers)
+                        # with torch.no_grad():
+                        #     shift = -args.eps * LSS(support_sets_mask,
+                        #                             latent_code[:, :stylegan_layer + 1, :].reshape(latent_code.shape[0],
+                        #                                                                            -1))
+                        #     shift = F.pad(input=shift, pad=(0, (STYLEGAN_LAYERS[gan] - 1 - stylegan_layer) * 512),
+                        #                   mode='constant', value=0).reshape_as(latent_code)
+                        # # REVIEW:
+                        # current_path_latent_code = latent_code
+                        # current_path_latent_shift = shift
+                        # # Calculate shifted latent code
+                        # latent_code = latent_code + shift
                     # === StyleGAN on S-space ===
                     elif stylegan_space == 'S':
-                        # Calculate shift vector based on the given s code (styles dictionary), only on the target
-                        # layers (i.e., those defined by STYLEGAN2_STYLE_SPACE_TARGET_LAYERS for the given GAN)
-                        shift_target_styles_vector = -args.eps * LSS(support_sets_mask, torch.cat(
-                            [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1))
-                        shift_target_styles_tuple = torch.split(
-                            tensor=shift_target_styles_vector,
-                            split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
-                            dim=1)
-                        latent_code_target_styles_vector = torch.cat(
-                            [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1)
-                        latent_code_target_styles_vector = latent_code_target_styles_vector + shift_target_styles_vector
-                        latent_code_target_styles_tuple = torch.split(
-                            tensor=latent_code_target_styles_vector,
-                            split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
-                            dim=1)
-                        shift = dict()
-                        latent_code_shifted = dict()
-                        style_cnt = 0
-                        for k, v in latent_code.items():
-                            if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan]:
-                                latent_code_shifted.update({k: latent_code_target_styles_tuple[style_cnt]})
-                                shift.update({k: shift_target_styles_tuple[style_cnt]})
-                                style_cnt += 1
-                            else:
-                                latent_code_shifted.update({k: latent_code[k]})
-                                shift.update({k: torch.zeros_like(latent_code[k])})
-                        # REVIEW:
-                        current_path_latent_code = latent_code
-                        current_path_latent_shift = shift
-                        # Calculate shifted latent code
-                        latent_code = latent_code_shifted
+                        raise NotImplementedError
+                        # # Calculate shift vector based on the given s code (styles dictionary), only on the target
+                        # # layers (i.e., those defined by STYLEGAN2_STYLE_SPACE_TARGET_LAYERS for the given GAN)
+                        # shift_target_styles_vector = -args.eps * LSS(support_sets_mask, torch.cat(
+                        #     [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1))
+                        # shift_target_styles_tuple = torch.split(
+                        #     tensor=shift_target_styles_vector,
+                        #     split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
+                        #     dim=1)
+                        # latent_code_target_styles_vector = torch.cat(
+                        #     [latent_code[k] for k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].keys()], dim=1)
+                        # latent_code_target_styles_vector = latent_code_target_styles_vector + shift_target_styles_vector
+                        # latent_code_target_styles_tuple = torch.split(
+                        #     tensor=latent_code_target_styles_vector,
+                        #     split_size_or_sections=list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan].values()),
+                        #     dim=1)
+                        # shift = dict()
+                        # latent_code_shifted = dict()
+                        # style_cnt = 0
+                        # for k, v in latent_code.items():
+                        #     if k in STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[gan]:
+                        #         latent_code_shifted.update({k: latent_code_target_styles_tuple[style_cnt]})
+                        #         shift.update({k: shift_target_styles_tuple[style_cnt]})
+                        #         style_cnt += 1
+                        #     else:
+                        #         latent_code_shifted.update({k: latent_code[k]})
+                        #         shift.update({k: torch.zeros_like(latent_code[k])})
+                        # # REVIEW:
+                        # current_path_latent_code = latent_code
+                        # current_path_latent_shift = shift
+                        # # Calculate shifted latent code
+                        # latent_code = latent_code_shifted
 
                 else:
                     # Calculate shift vector based on the given z-code
                     with torch.no_grad():
-                        shift = -args.eps * LSS(support_sets_mask, latent_code)
+                        shift = -args.eps * LSS[0](support_sets_mask, latent_code)
                     # REVIEW:
                     current_path_latent_code = latent_code
                     current_path_latent_shift = shift

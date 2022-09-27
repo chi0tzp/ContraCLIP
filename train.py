@@ -1,3 +1,4 @@
+import sys
 import argparse
 import os.path as osp
 import torch
@@ -71,8 +72,9 @@ def main():
     parser.add_argument('--corpus', type=str, required=True, choices=SEMANTIC_DIPOLES_CORPORA.keys(),
                         help="choose corpus of semantic dipoles")
     parser.add_argument('--vl-sim', type=str, default='proposed-warping',
-                        choices=('standard', 'proposed-no-warping', 'proposed-warping', 'proposed-warping-aux'),
+                        choices=('standard', 'proposed-no-warping', 'proposed-warping'),
                         help="type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')")
+    parser.add_argument('--no-proj', action='store_true', help="do not project to tangent spaces")
     parser.add_argument('--include-cls-in-mean', action='store_true',
                         help="include the CLS token into calculating text features statistics")
     parser.add_argument('--gamma-0', type=float, default=1.0, help="initial gamma parameter")
@@ -173,7 +175,6 @@ def main():
 
     # Get VL text features, means and covariances calculated on the tokens for the semantic dipoles of the given corpus
     sd = SemanticDipoles(corpus=SEMANTIC_DIPOLES_CORPORA[args.corpus],
-                         corpus_no_stop_words=SEMANTIC_DIPOLES_CORPORA_NO_STOP_WORDS[args.corpus],
                          clip_model=clip_model,
                          include_cls_in_mean=args.include_cls_in_mean,
                          use_cuda=use_cuda)
@@ -184,8 +185,8 @@ def main():
                                      stylegan_layer=args.stylegan_layer, truncation=args.truncation, exp_dir=exp_dir,
                                      use_cuda=use_cuda, verbose=True)
 
-    # Calculate Jung radius for given latent space
-    latent_centre, jung_radius = exp_preprocessor.calculate_jung_radius()
+    # Calculate latent codes centres anf Jung radii for given latent space
+    latent_centres, jung_radii = exp_preprocessor.calculate_latent_centres_and_jung_radii()
 
     # Build Corpus Support Sets model CSS
     print("#. Build Corpus Support Sets CSS...")
@@ -205,35 +206,39 @@ def main():
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(CSS_trainable_parameters))
 
-    # Set support vector dimensionality and initial gamma param
-    support_vectors_dim = G.dim_z
-    if 'stylegan' in args.gan:
-        if args.stylegan_space == 'W+':
-            support_vectors_dim *= (args.stylegan_layer + 1)
-        elif args.stylegan_space == 'S':
-            support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()))
+
+    # REVIEW: Major revision
+    #   Create as many LSSs' as the layers of the given StyleGAN; i.e., as many as the length of the lists
+    #   `latent_centres` and `jung_radii`
+    #
+    # # Set support vector dimensionality and initial gamma param
+    #     support_vectors_dim = G.dim_z
+    #     if 'stylegan' in args.gan:
+    #         if args.stylegan_space == 'W+':
+    #             support_vectors_dim *= (args.stylegan_layer + 1)
+    #         elif args.stylegan_space == 'S':
+    #             support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()))
 
     # Build Latent Support Sets model LSS
-    print("#. Build Latent Support Sets LSS...")
+    print("#. Build Latent Support Sets LSS model(s)...".format(len(latent_centres)))
     print("  \\__Number of latent support sets    : {}".format(sd.num_dipoles))
     print("  \\__Number of latent support dipoles : {}".format(args.num_latent_support_dipoles))
-    print("  \\__Support Vectors dim              : {}".format(support_vectors_dim))
-    print("  \\__Jung radius                      : {:.2f}".format(jung_radius))
-    print("  \\__Latent centre norm               : {:.2f}".format(latent_centre.norm()))
+    print("  \\__Support Vectors dim              : {}".format(G.dim_z))
     print("  \\__Learning rate                    : {}".format(args.lr))
 
-    LSS = LatentSupportSets(num_support_sets=sd.num_dipoles,
-                            num_support_dipoles=args.num_latent_support_dipoles,
-                            support_vectors_dim=support_vectors_dim,
-                            latent_centre=latent_centre,
-                            jung_radius=jung_radius)
+    LSS = []
+    for lss_idx in range(len(latent_centres)):
+        LSS.append(LatentSupportSets(num_support_sets=sd.num_dipoles,
+                                     num_support_dipoles=args.num_latent_support_dipoles,
+                                     support_vectors_dim=G.dim_z,
+                                     latent_centre=latent_centres[lss_idx],
+                                     jung_radius=jung_radii[lss_idx]))
 
     # Count number of trainable parameters
-    LSS_trainable_parameters = sum(p.numel() for p in LSS.parameters() if p.requires_grad)
+    LSS_trainable_parameters = 0
+    for lss_idx in range(len(latent_centres)):
+        LSS_trainable_parameters += sum(p.numel() for p in LSS[lss_idx].parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(LSS_trainable_parameters))
-
-    # import sys
-    # sys.exit()
 
     # Build ID loss (ArcFace)
     if args.id:

@@ -172,6 +172,6 @@ class CorpusSupportSets(nn.Module):
         grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
 
         # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
-        grad_f = self.orthogonal_projection(s=z, w=grad_f)
+        # grad_f = self.orthogonal_projection(s=z, w=grad_f)
 
         return grad_f

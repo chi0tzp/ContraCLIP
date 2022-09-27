@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import nn
 
@@ -48,7 +49,7 @@ class LatentSupportSets(nn.Module):
         # self.r_max = 1.25 * self.jung_radius
 
         self.r_min = 0.95 * self.jung_radius
-        self.r_max = 2.25 * self.jung_radius
+        self.r_max = 1.25 * self.jung_radius
 
         # TODO: reverse order of radii
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
@@ -58,14 +59,32 @@ class LatentSupportSets(nn.Module):
             self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
         for k in range(self.num_support_sets):
             SV_set = []
+            SV = torch.randn(1, self.support_vectors_dim)
             for i in range(self.num_support_dipoles):
-                SV = torch.randn(1, self.support_vectors_dim)
-                SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
-                SV_set.extend([latent_centre + SV, latent_centre - SV])
+                SV_ = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
+                SV_set.extend([latent_centre + SV_, latent_centre - SV_])
             SUPPORT_SETS_INIT[k, :] = torch.cat(SV_set)
 
         self.SUPPORT_SETS = nn.Parameter(data=SUPPORT_SETS_INIT.reshape(
             self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim))
+
+        ################################################################################################################
+        # REVIEW: previous initialisation
+        # # Define Support Sets parameters and initialise
+        # SUPPORT_SETS_INIT = torch.zeros(
+        #     self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
+        # for k in range(self.num_support_sets):
+        #     SV_set = []
+        #     for i in range(self.num_support_dipoles):
+        #         SV = torch.randn(1, self.support_vectors_dim)
+        #         SV = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
+        #         SV_set.extend([latent_centre + SV, latent_centre - SV])
+        #     SUPPORT_SETS_INIT[k, :] = torch.cat(SV_set)
+        #
+        # self.SUPPORT_SETS = nn.Parameter(data=SUPPORT_SETS_INIT.reshape(
+        #     self.num_support_sets, 2 * self.num_support_dipoles * self.support_vectors_dim))
+        ################################################################################################################
+
 
         ############################################################################################################
         ##                                          [ ALPHAS: (K, N) ]                                            ##

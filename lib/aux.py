@@ -43,9 +43,13 @@ def create_exp_dir(args):
         exp_dir += '@MUT'
         if args.include_cls_in_mean:
             exp_dir += '+CLS'
-        exp_dir += "-gamma0_{}".format(args.gamma_0)
+        if args.vl_sim == 'proposed-warping':
+            exp_dir += "-gamma0_{}".format(args.gamma_0)
+        if args.no_proj:
+            exp_dir += "-no-proj"
 
     # === LSS ===
+    # TODO: add number of LSS models (i.e., `args.stylegan_layer`)
     exp_dir += '-K{}-D{}'.format(len(SEMANTIC_DIPOLES_CORPORA[args.corpus]), args.num_latent_support_dipoles)
     exp_dir += '-eps{}_{}'.format(args.min_shift_magnitude, args.max_shift_magnitude)
 

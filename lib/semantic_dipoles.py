@@ -4,9 +4,8 @@ import clip
 
 
 class SemanticDipoles:
-    def __init__(self, corpus, corpus_no_stop_words, clip_model, use_cuda, include_cls_in_mean=False):
+    def __init__(self, corpus, clip_model, use_cuda, include_cls_in_mean=False):
         self.corpus = corpus
-        self.corpus_no_stop_words = corpus_no_stop_words
         self.use_cuda = use_cuda
         self.clip_model = clip_model.to('cuda' if self.use_cuda else 'cpu')
         self.include_cls_in_mean = include_cls_in_mean
@@ -90,10 +89,7 @@ class SemanticDipoles:
             ############################################################################################################
 
             # Get sample (token) covariances for the dipole
-
-            # REVIEW: calculate statistics after removing stop words from the corpus
             tokenized_dipole = clip.tokenize(self.corpus[t])
-            # tokenized_dipole = clip.tokenize(self.corpus_no_stop_words[t])
 
             # Get CLS / EOS (EndOfSentence) token position
             cls_positions = tokenized_dipole.argmax(dim=-1)
