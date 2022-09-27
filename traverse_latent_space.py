@@ -280,6 +280,7 @@ def main():
         print("  \\__Pre-trained weights: {}".format(latent_support_sets_model))
 
     for layer_idx in range(num_of_lss_models):
+
         LSS[layer_idx].load_state_dict(latent_support_sets_model_dicts['layer_{}'.format(layer_idx)])
         LSS[layer_idx].eval()
         if use_cuda:

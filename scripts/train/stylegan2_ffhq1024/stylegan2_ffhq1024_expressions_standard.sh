@@ -9,6 +9,7 @@ stylegan_space="W+"              # Choose StyleGAN latent space: Z, W, W+, or S
 stylegan_layer=12                # In the case of W+ space, choose up to which layer to use for learning latent paths
 corpus="expressions"             # Choose corpus of semantic dipoles from lib/config.py:SEMANTIC_DIPOLES_CORPORA
 vl_sim="standard"
+no_proj=true
 
 # ====[ Vision-Language Sphere Warper (VLSW) ========================================================================= #
 include_cls_in_mean=true
@@ -19,8 +20,8 @@ temperature=0.01                # Contrastive loss temperature
 
 # ====[ Latent Support Sets (LSS) ]==================================================================================== #
 num_latent_support_dipoles=1   # Set number of support dipoles per support set in the GAN's latent space
-min_shift_magnitude=0.1        # set minimum latent shift magnitude
-max_shift_magnitude=0.2        # set maximum latent shift magnitude
+min_shift_magnitude=0.05        # set minimum latent shift magnitude
+max_shift_magnitude=0.1        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=3                   # Set training batch size (cannot be larger than the size of the given corpus)
@@ -39,6 +40,11 @@ if $id ; then
   id_="--id"
 fi
 
+no_proj_=""
+if $no_proj ; then
+  no_proj_="--no-proj"
+fi
+
 # ======= Run training script ======= #
 python train.py --gan=${gan} \
                 --truncation=0.7 \
@@ -51,6 +57,7 @@ python train.py --gan=${gan} \
                 --num-latent-support-dipoles=${num_latent_support_dipoles} \
                 --temperature=${temperature} \
                 ${id_} \
+                ${no_proj_} \
                 --lambda-id=${lambda_id} \
                 --lr=${lr} \
                 --min-shift-magnitude=${min_shift_magnitude} \

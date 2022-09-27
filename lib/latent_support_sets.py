@@ -4,7 +4,7 @@ from torch import nn
 
 
 class LatentSupportSets(nn.Module):
-    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.1,
+    def __init__(self, num_support_sets=None, num_support_dipoles=None, support_vectors_dim=None, beta=0.05,
                  latent_centre=None, jung_radius=None):
         """LatentSupportSets class constructor.
 
@@ -48,8 +48,19 @@ class LatentSupportSets(nn.Module):
         # self.r_min = 0.90 * self.jung_radius
         # self.r_max = 1.25 * self.jung_radius
 
-        self.r_min = 0.95 * self.jung_radius
-        self.r_max = 1.25 * self.jung_radius
+        self.r_min = 0.90 * self.jung_radius
+        self.r_max = 1.80 * self.jung_radius
+
+        ######################## PROVA GRAM-SHMIDT #################################
+        # https://www.mdpi.com/2076-3417/10/3/1120
+        # ----------------------------------------
+        # zr = torch.randn(512).to(device)
+        # zi = y_feats.clone().squeeze()
+        # zr /= torch.linalg.norm(zr, dim=0)
+        # z90 = zr - torch.matmul(zi, zr) * zi
+        # radian = np.deg2rad(self.degrees)
+        # mani = zi * np.cos(radian) + z90 * np.sin(radian)
+        ############################################################################
 
         # TODO: reverse order of radii
         self.radii = torch.arange(self.r_min, self.r_max, (self.r_max - self.r_min) / self.num_support_dipoles)
@@ -59,8 +70,10 @@ class LatentSupportSets(nn.Module):
             self.num_support_sets, 2 * self.num_support_dipoles, self.support_vectors_dim)
         for k in range(self.num_support_sets):
             SV_set = []
-            SV = torch.randn(1, self.support_vectors_dim)
+            # REVIEW
+            # SV = torch.randn(1, self.support_vectors_dim)
             for i in range(self.num_support_dipoles):
+                SV = torch.randn(1, self.support_vectors_dim)
                 SV_ = self.radii[i] * SV / torch.norm(SV, dim=1, keepdim=True)
                 SV_set.extend([latent_centre + SV_, latent_centre - SV_])
             SUPPORT_SETS_INIT[k, :] = torch.cat(SV_set)

@@ -16,8 +16,8 @@ temperature=0.01               # Contrastive loss temperature
 
 # ====[ Latent Support Sets (LSS) ]==================================================================================== #
 num_latent_support_dipoles=1   # Set number of support dipoles per support set in the GAN's latent space
-min_shift_magnitude=0.1        # set minimum latent shift magnitude
-max_shift_magnitude=0.2        # set maximum latent shift magnitude
+min_shift_magnitude=0.05        # set minimum latent shift magnitude
+max_shift_magnitude=0.1        # set maximum latent shift magnitude
 
 # === Training ======================================================================================================= #
 batch_size=3                   # Set training batch size (cannot be larger than the size of the given corpus)

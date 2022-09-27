@@ -113,7 +113,7 @@ class Trainer(object):
 
         return starting_iter
 
-    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, last_lr):
+    def log_progress(self, iteration, mean_iter_time, elapsed_time, eta, last_lr, target_shift_magnitudes):
         """Log progress (loss + ETA).
 
         Args:
@@ -142,19 +142,23 @@ class Trainer(object):
         if iteration < self.params.max_iter - 1:
             print()
         print("         ===================================================================")
-        print("      \\__Loss    : {:.04f} (tau={:.02f})".format(stats['loss'], self.params.temperature))
+        print("      \\__Loss    : {:.04f} (tau={:.02f}) eps={}".format(stats['loss'], self.params.temperature, target_shift_magnitudes))
         if self.params.id:
             print("      \\__Loss ID : {:.04f} (lambda={:.02f})".format(stats['loss_id'], self.params.lambda_id))
+        if self.params.vl_sim == "proposed-warping":
+            print("      \\__Loss W  : {:.04f}".format(stats['loss_w']))
         print("         ===================================================================")
         print("      \\__Mean iter time : {:.3f} sec".format(mean_iter_time))
         print("      \\__Elapsed time   : {}".format(sec2dhms(elapsed_time)))
         print("      \\__ETA            : {}".format(sec2dhms(eta)))
         print("         ===================================================================")
 
+        cnt = 8
         if self.params.id:
-            update_stdout(9)
-        else:
-            update_stdout(8)
+            cnt += 1
+        if self.params.vl_sim == "proposed-warping":
+            cnt += 1
+        update_stdout(cnt)
 
     def train(self, generator, latent_support_sets, corpus_support_sets, clip_model, id_loss=None):
         """ContraCLIP training function.
@@ -209,9 +213,8 @@ class Trainer(object):
 
         # Set learning rate scheduler
         lr_scheduler = MultiStepLR(optimizer=optimizer,
-                                   milestones=[int(0.60 * self.params.max_iter),
-                                               int(0.80 * self.params.max_iter),
-                                               int(0.95 * self.params.max_iter)],
+                                   milestones=[int(0.40 * self.params.max_iter),
+                                               int(0.80 * self.params.max_iter)],
                                    gamma=0.1)
 
         # Get starting iteration
@@ -421,95 +424,62 @@ class Trainer(object):
             loss_id = 0.0
             loss_w = 0.0
             if self.params.vl_sim == "proposed-warping":
-                # REVIEW: ============================================================================================ #
-                # REVIEW: Copy from proposed-no-warping
-                # REVIEW: ============================================================================================ #
-                # Calculate the orthogonal projection of the difference of the VL image features, i.e., the manipulated
-                # (vl_img_shifted) minus the original (vl_img) onto the tangent space T_{vl_img}S^{n-1}
-                if self.params.no_proj:
-                    vl_img_diff = (vl_img_shifted - vl_img).float()
-                else:
-                    vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                                                                            w=(vl_img_shifted - vl_img).float())
-
-                # Get the vectors between the ending and the starting poles
-                semantic_dipoles_features_cls_batch = torch.matmul(
-                    support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
-                    -1, 2, corpus_support_sets.support_vectors_dim)
-
-                # Calculate the differences
-                pole_vectors_diff = target_shift_signs.reshape(-1, 1) * \
-                                    (semantic_dipoles_features_cls_batch[:, 0, :] - semantic_dipoles_features_cls_batch[
-                                                                                    :, 1, :])
-
-                # Calculate the orthogonal projection of the pole difference features, i.e., the ending minus the
-                # starting pole onto the tangent space T_{vl_img}S^{n-1}
-                if self.params.no_proj:
-                    vl_txt = pole_vectors_diff
-                else:
-                    vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=pole_vectors_diff)
-
-                # Contrastive loss
-                loss = self.contrastive_loss(vl_img_diff, vl_txt)
-                # REVIEW: ============================================================================================ #
-
-                semantic_dipoles_features_cls_batch = torch.matmul(
-                    support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
-                    -1, 2, corpus_support_sets.support_vectors_dim)
-                pole_vectors = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
-
-                vl_img_diff = corpus_support_sets.orthogonal_projection(s=pole_vectors,
-                                                                        w=(vl_img_shifted - vl_img).float())
-
-                # REVIEW
-                vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(
-                    support_sets_mask, corpus_support_sets.orthogonal_projection(s=pole_vectors, w=vl_img.float()))
-
-                vl_txt = corpus_support_sets.orthogonal_projection(s=pole_vectors, w=vl_txt)
-
-                # Contrastive loss
-                loss = self.contrastive_loss(vl_img_diff, vl_txt)
-
-                # # ===> self.params.vl_sim == "proposed-warping-aux":
-                # # Calculate the orthogonal projection of the difference of the VL image features, i.e., the manipulated
-                # # (vl_img_shifted) minus the original (vl_img) onto the tangent space T_{vl_img}S^{n-1}
-                # vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
-                #                                                         w=(vl_img_shifted - vl_img).float())
-                #
-                # # Get the vectors between the ending and the starting poles
+                # REVIEW === This seemed to work... ====================================================================
+                # # Get the corresponding pole vectors
                 # semantic_dipoles_features_cls_batch = torch.matmul(
                 #     support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
                 #     -1, 2, corpus_support_sets.support_vectors_dim)
+                # pole_vectors = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
                 #
-                # # Calculate the differences
-                # pole_vectors_diff = target_shift_signs.reshape(-1, 1) * \
-                #     (semantic_dipoles_features_cls_batch[:, 0, :] - semantic_dipoles_features_cls_batch[:, 1, :])
-                #
-                # # Calculate the orthogonal projection of the pole difference features, i.e., the ending minus the
-                # # starting pole onto the tangent space T_{vl_img}S^{n-1}
-                # vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=pole_vectors_diff)
-                #
-                # # REVIEW
-                # vl_txt_warp = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img)
-                # lambda_w = 1.0
-                #
-                # # print()
-                # # print("lambda_w = {}".format(lambda_w))
-                # # print("\tloss w/o  warping : {:.04f}".format(self.contrastive_loss(vl_img_diff, vl_txt)))
-                # # print("\tloss WITH warping : {:.04f}".format(self.contrastive_loss(vl_img_diff,  + lambda_w * vl_txt_warp)))
-                # # print('---')
-                # # print()
-                #
-                # # input('__>')
-                # # sys.exit()
+                # vl_img_pole_proj = corpus_support_sets.orthogonal_projection(s=pole_vectors.float(),
+                #                                                              w=(vl_img_shifted - vl_img).float())
+                # vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img_pole_proj)
                 #
                 # # Contrastive loss
-                # loss = self.contrastive_loss(vl_img_diff, vl_txt + lambda_w * vl_txt_warp)
+                # loss = self.contrastive_loss(vl_img_pole_proj, vl_txt)
+                # REVIEW === This seemed to work... ====================================================================
+
+                # REVIEW === This didn't work, it mixed paths... =======================================================
+                # # Get the corresponding pole vectors
+                # semantic_dipoles_features_cls_batch = torch.matmul(
+                #     support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
+                #     -1, 2, corpus_support_sets.support_vectors_dim)
+                # pole_vectors = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
                 #
-                # # loss_w = self.contrastive_loss(vl_img_diff, vl_txt + lambda_w * vl_txt_warp)
+                # vl_img_diff_pole_proj = corpus_support_sets.orthogonal_projection(s=pole_vectors.float(),
+                #                                                                   w=(vl_img_shifted - vl_img).float())
                 #
-                # # TODO:
-                # #   - save loss with and without warping rectif...
+                # vl_img_pole_proj = corpus_support_sets.orthogonal_projection(s=pole_vectors.float(), w=vl_img.float())
+                #
+                # vl_txt = corpus_support_sets(support_sets_mask, vl_img_pole_proj)
+                #
+                # # Contrastive loss
+                # loss = self.contrastive_loss(vl_img_diff_pole_proj, vl_txt)
+                # REVIEW === This didn't work, it mixed paths... =======================================================
+
+                # Calculate the orthogonal projection of the difference of the VL image features, i.e., the manipulated
+                # (vl_img_shifted) minus the original (vl_img) onto the tangent space T_{vl_img}S^{n-1}
+                # vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                #                                                         w=(vl_img_shifted - vl_img).float())
+
+                vl_img_diff = (vl_img_shifted - vl_img).float()
+
+                vl_txt = corpus_support_sets(support_sets_mask, target_shift_signs, vl_img)
+
+                loss = self.contrastive_loss(vl_img_diff, vl_txt)
+
+                # # Get the corresponding pole vectors
+                # semantic_dipoles_features_cls_batch = torch.matmul(
+                #     support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
+                #     -1, 2, corpus_support_sets.support_vectors_dim)
+                # pole_vectors = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
+                #
+                # vl_img_pole_proj = corpus_support_sets.orthogonal_projection(s=pole_vectors.float(),
+                #                                                              w=(vl_img_shifted - vl_img).float())
+                # vl_txt = target_shift_signs.reshape(-1, 1) * corpus_support_sets(support_sets_mask, vl_img_pole_proj)
+                #
+                # # Contrastive loss
+                # loss = self.contrastive_loss(vl_img_pole_proj, vl_txt)
 
             ############################################################################################################
             ##                             [ Proposed Image-Text Similarity (No-warping) ]                            ##
@@ -592,7 +562,8 @@ class Trainer(object):
                                   mean_iter_time=mean_iter_time,
                                   elapsed_time=elapsed_time,
                                   eta=eta,
-                                  last_lr=lr_scheduler.get_last_lr())
+                                  last_lr=lr_scheduler.get_last_lr(),
+                                  target_shift_magnitudes=target_shift_magnitudes)
 
             # Save checkpoint model file and latent support_sets model state dicts after current iteration
             if iteration % self.params.ckp_freq == 0:

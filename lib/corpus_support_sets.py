@@ -152,7 +152,7 @@ class CorpusSupportSets(nn.Module):
         return torch.arccos((q * s).sum(axis=-1)).unsqueeze(1) * pi_s_q_minus_s / \
             torch.norm(pi_s_q_minus_s, dim=1, keepdim=True)
 
-    def forward(self, support_sets_mask, z):
+    def forward(self, support_sets_mask, target_shift_signs, z):
 
         # Get RBF support sets batch
         support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)
@@ -160,6 +160,9 @@ class CorpusSupportSets(nn.Module):
 
         # Get batch of RBF alpha parameters
         alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
+
+        # REVIEW
+        alphas_batch = target_shift_signs.unsqueeze(1).unsqueeze(1) * alphas_batch
 
         # Get batch of RBF gamma/log(gamma) parameters
         gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
@@ -173,5 +176,7 @@ class CorpusSupportSets(nn.Module):
 
         # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
         # grad_f = self.orthogonal_projection(s=z, w=grad_f)
+
+        # grad_f = grad_f / torch.norm(grad_f, dim=1, keepdim=True)
 
         return grad_f
