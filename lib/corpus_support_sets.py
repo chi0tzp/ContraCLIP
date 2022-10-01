@@ -93,6 +93,14 @@ class CorpusSupportSets(nn.Module):
         # semantic_dipoles_covariances = self.gamma_0 * self.semantic_dipoles_covariances
         semantic_dipoles_covariances = torch.div(self.gamma_0, self.semantic_dipoles_covariances)
 
+        print('*********************************')
+        print(semantic_dipoles_covariances.min())
+        print(semantic_dipoles_covariances.max())
+        print(semantic_dipoles_covariances.mean())
+        print('*********************************')
+
+        sys.exit()
+
         self.LOGGAMMA = nn.Parameter(
             data=torch.log(semantic_dipoles_covariances.reshape(-1, 2 * self.support_vectors_dim)),
             requires_grad=False)
@@ -152,17 +160,39 @@ class CorpusSupportSets(nn.Module):
         return torch.arccos((q * s).sum(axis=-1)).unsqueeze(1) * pi_s_q_minus_s / \
             torch.norm(pi_s_q_minus_s, dim=1, keepdim=True)
 
-    def forward(self, support_sets_mask, target_shift_signs, z):
+    def forward(self, support_sets_mask, z):
+        # REVIEW: previous...
+        # # Get RBF support sets batch
+        # support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)
+        # support_sets_batch = support_sets_batch.reshape(-1, 2, self.support_vectors_dim)
+        #
+        # # Get batch of RBF alpha parameters
+        # alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
+        #
+        # # REVIEW
+        # alphas_batch = target_shift_signs.unsqueeze(1).unsqueeze(1) * alphas_batch
+        #
+        # # Get batch of RBF gamma/log(gamma) parameters
+        # gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
+        #     -1, 2, self.support_vectors_dim)
+        #
+        # # Calculate grad of f at z
+        # D = z.unsqueeze(dim=1) - support_sets_batch
+        # SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
+        # SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
+        # grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
+        #
+        # # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
+        # # grad_f = self.orthogonal_projection(s=z, w=grad_f)
+        #
+        # # grad_f = grad_f / torch.norm(grad_f, dim=1, keepdim=True)
+        #
+        # return grad_f
 
+        # REVIEW: NEW
         # Get RBF support sets batch
         support_sets_batch = torch.matmul(support_sets_mask, self.SUPPORT_SETS)
         support_sets_batch = support_sets_batch.reshape(-1, 2, self.support_vectors_dim)
-
-        # Get batch of RBF alpha parameters
-        alphas_batch = torch.matmul(support_sets_mask, self.ALPHAS).unsqueeze(dim=2)
-
-        # REVIEW
-        alphas_batch = target_shift_signs.unsqueeze(1).unsqueeze(1) * alphas_batch
 
         # Get batch of RBF gamma/log(gamma) parameters
         gammas_batch = torch.exp(torch.matmul(support_sets_mask, self.LOGGAMMA)).reshape(
@@ -172,11 +202,6 @@ class CorpusSupportSets(nn.Module):
         D = z.unsqueeze(dim=1) - support_sets_batch
         SGSt = torch.einsum('b i d, b i d -> b i', D ** 2, gammas_batch)
         SG = torch.einsum('b i d, b i d -> b i d', D, gammas_batch)
-        grad_f = -(alphas_batch * torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG).sum(dim=1)
-
-        # Orthogonally project gradient to the tangent space of z (Riemannian gradient)
-        # grad_f = self.orthogonal_projection(s=z, w=grad_f)
-
-        # grad_f = grad_f / torch.norm(grad_f, dim=1, keepdim=True)
+        grad_f = torch.exp(-0.5 * SGSt.unsqueeze(dim=2)) * SG
 
         return grad_f

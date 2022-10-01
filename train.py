@@ -13,7 +13,23 @@ def main():
     Options:
         === [Experiment ID] ============================================================================================
         --exp-id                     : optional experiment id string
-        --exp-subdir                 : optional subdirectory under experiments/complete/
+        --exp-subdir                 : optional subdirectory under experiments/complete/ where completed experiment will
+                                       be transferred
+
+        ===[ Latent Paths Network (LPN) ]===============================================================================
+        --latent-paths-type          : TODO: (mlp, wgs)
+
+
+
+
+
+
+        --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
+
+        --min-shift-magnitude        : set minimum latent shift magnitude
+        --max-shift-magnitude        : set maximum latent shift magnitude
+
+
         ===[ GAN Generator (G) ]========================================================================================
         --gan                        : set pre-trained GAN generator (see GENFORCE_MODELS in lib/config.py)
         --stylegan-space             : set StyleGAN's latent space (Z, W, W+, S) to look for interpretable paths
@@ -21,6 +37,11 @@ def main():
                                        E.g., if --stylegan-layer=11, then interpretable paths will be learnt in a
                                        (12 * 512)-dimensional latent space (i.e., the first 12 layers of the W+ space)
         --truncation                 : set GAN's sampling truncation parameter
+
+
+
+
+
 
         ===[ Corpus Support Sets (CSS) ]================================================================================
         --vl-model                   : choose VL model ('clip' or 'farl')
@@ -33,10 +54,7 @@ def main():
         --vl-sim                     : type of VL similarity ('standard', 'proposed-no-warping', 'proposed-warping')
         --include-cls-in-mean        : include the CLS token into calculating text features statistics
 
-        ===[ Latent Support Sets (LSS) ]================================================================================
-        --num-latent-support-dipoles : set number of support dipoles per support set in the GAN's latent space
-        --min-shift-magnitude        : set minimum latent shift magnitude
-        --max-shift-magnitude        : set maximum latent shift magnitude
+
 
         ===[ Training ]=================================================================================================
         --max-iter                   : set maximum number of training iterations
@@ -65,6 +83,12 @@ def main():
                         help="StyleGAN's latent space")
     parser.add_argument('--stylegan-layer', type=int, default=11, choices=range(18),
                         help="choose up to which StyleGAN's layer to use for learning latent paths")
+    parser.add_argument('')
+
+
+
+
+
     parser.add_argument('--truncation', type=float, help="latent code sampling truncation parameter")
 
     # === Corpus Support Sets (CSS) ================================================================================== #
@@ -205,19 +229,6 @@ def main():
     # Count number of trainable parameters
     CSS_trainable_parameters = sum(p.numel() for p in CSS.parameters() if p.requires_grad)
     print("  \\__Trainable parameters             : {:,}".format(CSS_trainable_parameters))
-
-
-    # REVIEW: Major revision
-    #   Create as many LSSs' as the layers of the given StyleGAN; i.e., as many as the length of the lists
-    #   `latent_centres` and `jung_radii`
-    #
-    # # Set support vector dimensionality and initial gamma param
-    #     support_vectors_dim = G.dim_z
-    #     if 'stylegan' in args.gan:
-    #         if args.stylegan_space == 'W+':
-    #             support_vectors_dim *= (args.stylegan_layer + 1)
-    #         elif args.stylegan_space == 'S':
-    #             support_vectors_dim = sum(list(STYLEGAN2_STYLE_SPACE_TARGET_LAYERS[args.gan].values()))
 
     # Build Latent Support Sets model LSS
     print("#. Build Latent Support Sets LSS model(s)...".format(len(latent_centres)))

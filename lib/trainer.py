@@ -324,19 +324,24 @@ class Trainer(object):
             support_sets_mask = torch.zeros([self.params.batch_size, latent_support_sets[0].num_support_sets])
             target_shift_signs = torch.zeros_like(target_shift_magnitudes)
             prompt_mask = torch.zeros([self.params.batch_size, 2])
+            prompt_mask_c = torch.zeros([self.params.batch_size, 2])
             for i, (index, val) in enumerate(zip(target_support_sets_indices, target_shift_magnitudes)):
                 support_sets_mask[i][index] += 1.0
                 # target_shift_signs[i] = +1.0 if val >= 0 else -1.0
                 if val >= 0:
                     prompt_mask[i, 0] = 1.0
+                    prompt_mask_c[i, 1] = 1.0
                     target_shift_signs[i] = 1.0
                 else:
                     prompt_mask[i, 1] = 1.0
+                    prompt_mask_c[i, 0] = 1.0
                     target_shift_signs[i] = -1.0
             prompt_mask = prompt_mask.unsqueeze(1)
+            prompt_mask_c = prompt_mask_c.unsqueeze(1)
             if self.use_cuda:
                 support_sets_mask = support_sets_mask.cuda()
                 prompt_mask = prompt_mask.cuda()
+                prompt_mask_c = prompt_mask_c.cuda()
                 target_shift_signs = target_shift_signs.cuda()
 
             # Calculate shift vectors for the given latent codes -- in the case of StyleGAN, shifts live in the
@@ -462,11 +467,11 @@ class Trainer(object):
                 # vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
                 #                                                         w=(vl_img_shifted - vl_img).float())
 
-                vl_img_diff = (vl_img_shifted - vl_img).float()
-
-                vl_txt = corpus_support_sets(support_sets_mask, target_shift_signs, vl_img)
-
-                loss = self.contrastive_loss(vl_img_diff, vl_txt)
+                # vl_img_diff = (vl_img_shifted - vl_img).float()
+                #
+                # vl_txt = corpus_support_sets(support_sets_mask, target_shift_signs, vl_img)
+                #
+                # loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
                 # # Get the corresponding pole vectors
                 # semantic_dipoles_features_cls_batch = torch.matmul(
@@ -480,6 +485,27 @@ class Trainer(object):
                 #
                 # # Contrastive loss
                 # loss = self.contrastive_loss(vl_img_pole_proj, vl_txt)
+
+                pass
+                # Calculate the orthogonal projection of the difference of the VL image features, i.e., the manipulated
+                # (vl_img_shifted) minus the original (vl_img) onto the tangent space T_{vl_img}S^{n-1}
+                vl_img_diff = corpus_support_sets.orthogonal_projection(s=vl_img.float(),
+                                                                        w=(vl_img_shifted - vl_img).float())
+
+                # Get the corresponding pole vectors
+                semantic_dipoles_features_cls_batch = torch.matmul(
+                    support_sets_mask, corpus_support_sets.SEMANTIC_DIPOLES_FEATURES_CLS).reshape(
+                    -1, 2, corpus_support_sets.support_vectors_dim)
+                pole_vectors_dest = torch.matmul(prompt_mask, semantic_dipoles_features_cls_batch).squeeze(1)
+                pole_vectors_source = torch.matmul(prompt_mask_c, semantic_dipoles_features_cls_batch).squeeze(1)
+
+                grad_at_source_poles = torch.matmul(prompt_mask_c,
+                                                    corpus_support_sets(support_sets_mask, pole_vectors_source)).squeeze(1)
+
+                vl_txt = corpus_support_sets.orthogonal_projection(s=vl_img.float(), w=grad_at_source_poles)
+
+                # Contrastive loss
+                loss = self.contrastive_loss(vl_img_diff, vl_txt)
 
             ############################################################################################################
             ##                             [ Proposed Image-Text Similarity (No-warping) ]                            ##
